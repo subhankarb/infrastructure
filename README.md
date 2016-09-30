@@ -32,8 +32,7 @@ Python 3.5 or higher is required.
 ### Processing multiple files in parallel on AWS:
 
 * Upload your files to S3
-* Set ```CYBERGREEN_SOURCE_ROOT``` to your S3 bucket and path, e.g.
-  ```s3://mybucket/dev/raw```
+* Set ```CYBERGREEN_SOURCE_ROOT``` to your S3 bucket and path, e.g. ```s3://mybucket/dev/raw```
 * Set up an AWS ECS cluster
 * Start a number of EC2 instances in the cluster
 * Execute jobs on available systems until complete:
@@ -41,8 +40,7 @@ Python 3.5 or higher is required.
 
 ### Logging
 
-Metrics on ETL processing times may be sent to Datadog by setting the
-```DD_API_KEY``` environment variable.
+Metrics on ETL processing times may be sent to Datadog by setting the ```DD_API_KEY``` environment variable.
 
 ## Contributing
 
