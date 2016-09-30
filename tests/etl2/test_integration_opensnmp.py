@@ -1,10 +1,11 @@
+from unittest import skip
 import csv
 import nose
 from .base_etl_class import AbstractEtlTest
 
 
 @nose.tools.istest
-class TestOpenntpEtl(AbstractEtlTest):
+class TestOpensnmpEtl(AbstractEtlTest):
     def setUp(self):
         self.source_name = "opensnmp"
         self.out_prefix = "snmp-data"
@@ -101,5 +102,6 @@ class TestOpenntpEtl(AbstractEtlTest):
         self.assertEqual(etl.stats["parsed"], 2)
         self.assertEqual(etl.stats["badip"], 1)
 
+    @skip("Not yet implemented")
     def test_not_enough_raw_cols(self):
         pass
