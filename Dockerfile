@@ -6,7 +6,7 @@ RUN apk add --no-cache python3 bash git && \
     pip3 install --upgrade pip setuptools && \
     rm -r /root/.cache
 
-RUN git clone https://github.com/Cosive/etl2.git /app
+RUN git clone https://github.com/cybergreen-net/etl2.git /app
 
 RUN cd /app && git checkout devel
 
