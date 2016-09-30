@@ -14,7 +14,7 @@
             "in_fields": ["ts", "ip", "port", "response", "ntp_version", "ntp_mode", "ntp_bytes", "extras"],
 			"source_path":      "$CYBERGREEN_SOURCE_ROOT/ntp-scan/",
 			"destination_path": "$CYBERGREEN_DEST_ROOT/ntp-scan/",
-			"source_file_prefix": "parsed.{year}{month:02d}{day:02d}.out",
+			"source_file_prefix": "parsed.{year}{month:02d}{day:02d}.out.gz",
             "source_file_regex": "parsed\\.(?P<year>\\d{4})(?P<month>\\d{2})(?P<day>\\d{2})\\.out",
 			"__comment": "{year}{month:02d}{day:02d}.out",
 			"destination_file_prefix": "ntp-scan.{year:02d}{month:02d}{day:02d}.csv"

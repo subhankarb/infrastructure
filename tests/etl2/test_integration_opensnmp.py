@@ -1,13 +1,13 @@
-
 import csv
 import nose
+from .base_etl_class import AbstractEtlTest
 
 
 @nose.tools.istest
 class TestOpenntpEtl(AbstractEtlTest):
     def setUp(self):
         self.source_name = "opensnmp"
-        self.out_prefix = "snmp-scan"
+        self.out_prefix = "snmp-data"
 
         super().setUp()
 
@@ -29,7 +29,7 @@ class TestOpenntpEtl(AbstractEtlTest):
         # TODO: test fails - is +2 GMT correct?
         self.assertListEqual(
             csvr[1],
-            ["2016-04-02T00:00:00+00:00", "1.1.1.1", "4", "27947", "AU"])
+            ["2016-08-02T00:00:03+00:00", "1.1.1.1", "4", "27947", "AU"])
 
     def test_double_line_valid(self):
         data = (
@@ -42,11 +42,11 @@ class TestOpenntpEtl(AbstractEtlTest):
 
         self.assertListEqual(
             csvr[1],
-            ["2016-04-02T00:00:00+00:00", "1.1.1.1", "2", "27947", "AU"])
+            ["2016-08-02T00:00:03+00:00", "1.1.1.1", "4", "27947", "AU"])
 
         self.assertListEqual(
             csvr[2],
-            ["2016-04-02T00:00:00+00:00", "2.2.2.2", "2", "3215", "FR"])
+            ["2016-08-02T00:00:04+00:00", "2.2.2.2", "4", "3215", "FR"])
 
     def test_extras_data_handled(self):
         pass
