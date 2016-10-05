@@ -19,9 +19,7 @@ Examples:
     ETL.py --source=openntp --eventdate=20160527 \
         --config_file=configs/my_config.json
 """
-from pympler import asizeof
 import csv
-# import ipaddress
 import logging
 import radix
 import IP2Location
