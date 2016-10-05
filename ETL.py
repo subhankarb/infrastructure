@@ -485,8 +485,7 @@ class ETL(object):
 # @profile
 def etl_process(eventdate=None, source=None, config_path=None,
                 force_write=False, sampling_rate=1, use_datadog=True):
-    etl = ETL(eventdate=eventdate, source=source, config_path=config_path,
-              force_write=force_write)
+    etl = ETL(eventdate=eventdate, source=source, config_path=config_path, force_write=force_write)
     before = datetime.now()
 
     logging.info("Input file: {}".format(etl.source_path))
@@ -519,7 +518,6 @@ def etl_process(eventdate=None, source=None, config_path=None,
             "enriched_per_second", s["enriched"] / runtime.total_seconds())
         for stat in s:
             etl.logstat(stat, s[stat])
-
     return etl
 
 

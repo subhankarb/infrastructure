@@ -102,9 +102,9 @@ class TestOpendnsEtl(AbstractEtlTest):
 
         self.assertEqual(len(csvr[1:]), 1)  # chop CSV headers
         self.assertEqual(csvr[1][1], "1.1.1.1")
-        self.assertEqual(etl.stats["total"], 2)
+        self.assertEqual(etl.stats["total"], 3)
         self.assertEqual(etl.stats["enriched"], 1)
-        self.assertEqual(etl.stats["parsed"], 2)
+        self.assertEqual(etl.stats["parsed"], 3)
         self.assertEqual(etl.stats["badip"], 1)
 
     @skip("Not yet implemented")
