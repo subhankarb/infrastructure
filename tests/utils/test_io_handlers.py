@@ -1,3 +1,6 @@
+"""
+TODO: shift to pytest, fully implement.
+"""
 from unittest import TestCase, skip
 import tempfile
 from etl2.io import LocalFileHandler, S3FileHandler
@@ -78,6 +81,3 @@ class TestS3IOHandler(TestCase):
         self.assertEqual(
             self.lfh.full_path + '.gz',
             os.path.join(self.file_dir, self.filename) + self.lfh.arc_ext)
-
-
-

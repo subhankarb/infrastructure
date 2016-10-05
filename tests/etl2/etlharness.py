@@ -1,17 +1,15 @@
-from unittest import TestCase
 # from ETL import etl_process
 import ETL
 import os
 import tempfile
-import nose
 import gzip
 
 
-@nose.tools.nottest
-class AbstractEtlTest(TestCase):
-    def setUp(self):
+class EtlHarness:
+    def __init__(self, source, out_prefix):
         root_dir = tempfile.mkdtemp()
-
+        self.source_name = source
+        self.out_prefix = out_prefix
         self.source_root = os.path.join(root_dir, "raw")
         self.source_dir = os.path.join(self.source_root, self.out_prefix)
         self.dest_root = os.path.join(root_dir, "clean")
@@ -44,5 +42,4 @@ class AbstractEtlTest(TestCase):
         etl = ETL.etl_process(eventdate="20000101", source=self.source_name, config_path="configs/config.json", use_datadog=False)
 
         lines = self._read_dest_file("{}.20000101.csv".format(self.out_prefix))
-
         return lines, etl
