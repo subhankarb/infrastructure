@@ -29,6 +29,7 @@ import pickle
 import gzip
 import os.path
 import shutil
+import sys
 from pytz import utc
 
 from etl2.utils import is_private_ipv4, is_s3_path, load_source_config
@@ -70,6 +71,11 @@ class IPValidationException(Exception):
 
 
 class TimestampValidationException(Exception):
+    def __init__(self, *args, **kwargs):
+        Exception.__init__(self, *args, **kwargs)
+
+
+class OutputExistsException(Exception):
     def __init__(self, *args, **kwargs):
         Exception.__init__(self, *args, **kwargs)
 
@@ -144,12 +150,13 @@ class ETL(object):
         self.temp_dir = self.config.get("temp_dir", "/tmp")
         self.load_prefix_tree()
 
-        self.choose_inputs()
         self.chose_outputs()
 
         if not force_write and self.output_file_exists():
             logging.info("Already found output file for this date, aborting. Run with --force_write to replace.")
-            raise Exception("Already found output file for this date, aborting. Run with --force_write to replace.")
+            raise OutputExistsException("Already found output file for this date, aborting. Run with --force_write to replace.")
+
+        self.choose_inputs()
 
     def logstat(self, metric, count):
         api.Metric.send(metric=metric, points=count, tags=['source:' + self.source, 'eventdate:' + self.eventdate])
@@ -504,6 +511,9 @@ def etl_process(eventdate=None, source=None, config_path=None,
         etl.finalise()
     except RuntimeError as e:
         logging.exception(e)
+    except OutputExistsException as e:
+        sys.exit(e)
+
     runtime = datetime.now() - before
     s = etl.stats
     logging.info("{} took {} seconds".format(
