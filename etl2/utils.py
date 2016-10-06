@@ -12,6 +12,10 @@ def load_env_var(env_name):
         raise ValueError("{} is required as an environment variable")
 
 
+def load_env_var_or_none(env_name):
+    return os.environ.get(env_name)
+
+
 def is_private_ipv4(ip_str):
     """
         TODO: handle ipv6 in a single function that's performant.
