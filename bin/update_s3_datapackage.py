@@ -26,7 +26,9 @@ def get_file_listing(s3=None):
             bucket = s3.Bucket(s3_bucket)
             source_files[source_name] = []
             for obj in bucket.objects.filter(Prefix=s3_path):
-                source_files[source_name].append(obj.key)
+                # dir names seem to inconsistently slip in here...
+                if not obj.key.endswith("/"):
+                    source_files[source_name].append(obj.key)
         except (KeyError, ValueError) as e:
             print(e)
             print("You need a destination S3 path")
