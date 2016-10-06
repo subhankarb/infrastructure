@@ -85,7 +85,6 @@ workspace/
 venv/
 ENV/
 env/
-
 # Spyder project settings
 .spyderproject
 

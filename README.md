@@ -1,5 +1,7 @@
 # CyberGreen ETLv2
 
+Master: [![Build Status](https://travis-ci.org/cybergreen-net/etl2.svg?branch=master)](https://travis-ci.org/cybergreen-net/etl2) Devel: [![Build Status](https://travis-ci.org/cybergreen-net/etl2.svg?branch=devel)](https://travis-ci.org/cybergreen-net/etl2)
+
 ETLv2 performs an Extract-Transform-Load cycle for data files relevant to the
 CyberGreen project. It:
 

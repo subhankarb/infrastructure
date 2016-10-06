@@ -19,9 +19,7 @@ Examples:
     ETL.py --source=openntp --eventdate=20160527 \
         --config_file=configs/my_config.json
 """
-
 import csv
-# import ipaddress
 import logging
 import radix
 import IP2Location
@@ -91,6 +89,11 @@ def coroutine(func):
     return start
 
 
+# The Particia tree for the subnet to ASN mapping lives in this, the destructor on the C code doesn't always trigger so we need
+# to make sure we don't keep loading it for the sake of the test runners.
+asn_tree = None
+
+
 class ETL(object):
     def __init__(self, eventdate=None, source=None, config_path=None, force_write=False):
         """
@@ -143,29 +146,38 @@ class ETL(object):
             year=e.year, month=e.month, day=e.day)
         self.outfilename = self.config['destination_file_prefix'].format(
             year=e.year, month=e.month, day=e.day)
-
         self.ip2l = IP2Location.IP2Location()
         self.ip2l.open(self.config['ip2l_db'])
         self.enrich_country = self.enrich_country_ip2l
         self.temp_dir = self.config.get("temp_dir", "/tmp")
-        self.load_prefix_tree()
+
+        if not asn_tree:
+            self.load_asn_tree()
 
         self.chose_outputs()
 
         if not force_write and self.output_file_exists():
-            logging.info("Already found output file for this date, aborting. Run with --force_write to replace.")
-            raise OutputExistsException("Already found output file for this date, aborting. Run with --force_write to replace.")
+            logging.info("Already found output file for this date, aborting. "
+                         "Run with --force_write to replace.")
+            raise OutputExistsException(
+                "Already found output file for this date, aborting. Run with "
+                "--force_write to replace.")
 
         self.choose_inputs()
 
     def logstat(self, metric, count):
-        api.Metric.send(metric=metric, points=count, tags=['source:' + self.source, 'eventdate:' + self.eventdate])
+        api.Metric.send(metric=metric, points=count, tags=[
+            'source:' + self.source, 'eventdate:' + self.eventdate])
 
-    def load_prefix_tree(self):
-        self.prefix_tree = radix.Radix()
+    def load_asn_tree(self):
+        """
+        We call this if the asn_tree isn't initialised.
+        """
+        global asn_tree
+        asn_tree = radix.Radix()
         if self.config.get("pickled_prefix_table"):
             with open(self.config.get("pickled_prefix_table"), "rb") as f:
-                self.prefix_tree = pickle.load(f)
+                asn_tree = pickle.load(f)
         else:
             with open(self.config.get("prefix_table"), "r") as f:
                 i = 0
@@ -173,7 +185,7 @@ class ETL(object):
                     prefix, asn = prefix.strip().split()
                     # if verbose: print ("prefix,asn={prefix},{asn}".format(
                     # prefix=prefix,asn=asn), file=sys.stderr)
-                    rnode = self.prefix_tree.add(prefix)
+                    rnode = asn_tree.add(prefix)
                     rnode.data['origin'] = int(asn)
                     i += 1
         logging.info("Loaded prefix tree")
@@ -424,7 +436,7 @@ class ETL(object):
 
     # @profile
     def enrich_asn(self, ip):
-        rnode = self.prefix_tree.search_best(ip.strip())
+        rnode = asn_tree.search_best(ip.strip())
         if rnode and rnode.data.get('origin'):
             return rnode.data['origin']
         else:
@@ -492,8 +504,7 @@ class ETL(object):
 # @profile
 def etl_process(eventdate=None, source=None, config_path=None,
                 force_write=False, sampling_rate=1, use_datadog=True):
-    etl = ETL(eventdate=eventdate, source=source, config_path=config_path,
-              force_write=force_write)
+    etl = ETL(eventdate=eventdate, source=source, config_path=config_path, force_write=force_write)
     before = datetime.now()
 
     logging.info("Input file: {}".format(etl.source_path))
@@ -529,7 +540,6 @@ def etl_process(eventdate=None, source=None, config_path=None,
             "enriched_per_second", s["enriched"] / runtime.total_seconds())
         for stat in s:
             etl.logstat(stat, s[stat])
-
     return etl
 
 
