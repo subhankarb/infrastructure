@@ -39,7 +39,7 @@ from pprint import pformat
 
 import boto3
 from collections import deque
-from etl2.utils import load_source_config, load_env_var
+from etl2.utils import load_source_config, load_env_var, load_env_var_or_none
 
 logging.basicConfig(
     level=logging.INFO,
@@ -137,6 +137,10 @@ def dispatch(pending_queue):
                             {
                                 'name': "CYBERGREEN_DEST_ROOT",
                                 'value': load_env_var("CYBERGREEN_DEST_ROOT")
+                            },
+                            {
+                                'name': "DD_API_KEY",
+                                'value': load_env_var_or_none("DD_API_KEY")
                             },
                             {
                                 'name': "ECS_AVAILABLE_LOGGING_DRIVERS",
