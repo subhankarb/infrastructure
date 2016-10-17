@@ -94,7 +94,7 @@ def load_config(config_path):
         config_str = Template(template).substitute(os.environ)
     except KeyError as e:
         raise ValueError(
-            "A missing environment variable is missing: {}".format(e))
+            "An environment variable is missing: {}".format(e))
     config = json.loads(config_str)
 
     return config
