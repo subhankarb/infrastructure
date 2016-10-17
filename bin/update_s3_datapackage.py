@@ -81,7 +81,6 @@ def generate_datapackage(outfile, file_list):
         ]
     }
 
-
     dp = datapackage.DataPackage()
     dp.descriptor['name'] = 'cybergreen_enriched_data'
     dp.descriptor['title'] = 'CyberGreen Enriched Data'

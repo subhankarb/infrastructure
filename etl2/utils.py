@@ -65,6 +65,24 @@ def split_s3_path(s3_address):
         return (s3_bucket, s3_path)
 
 
+def list_s3_files_for_source(s3, config, source):
+    """
+
+    """
+    s3_bucket, s3_path = split_s3_path(config['source'][source]['source_path'])
+    remote_files = s3.Bucket(s3_bucket).objects.filter(
+        Prefix=s3_path)
+    for f in remote_files:
+        print(f.key)
+
+
+def all_sources(config):
+    """
+    Return a list of the sources we know about.
+    """
+    return [i for i in config['source']]
+
+
 def load_config(config_path):
     """
     Load the regular config file
@@ -86,10 +104,9 @@ def load_source_config(config_path, source):
     config = {}
 
     c = load_config(config_path)
-    # TODO is this a bad idea? flatten the tree a it.
+    # TODO is this a bad idea? flatten the tree a bit.
     config = {}
     config.update(c)
     config.update(c['source'][source])
     del config['source']
-
     return config

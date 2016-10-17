@@ -29,8 +29,6 @@ Examples:
      --task='arn:aws:ecs:[region]:[acc ID]:task-definition/etl2:2'\
      --source=openntp -f data/*.csv.gz  --max_tasks=10
 """
-
-from docopt import docopt
 import time
 import glob
 import re
@@ -166,28 +164,30 @@ def dispatch(pending_queue):
     return pending_queue
 
 
-ARGS = docopt(__doc__)
-print(ARGS)
-date_queue = deque()
+if __name__ == "__main__":
+    from docopt import docopt
+    ARGS = docopt(__doc__)
+    print(ARGS)
+    date_queue = deque()
 
-CONFIG = load_source_config(ARGS["--config_file"], ARGS["--source"])
+    CONFIG = load_source_config(ARGS["--config_file"], ARGS["--source"])
 
-if ARGS.get("--eventdate"):
-    for date in ARGS.get("--eventdate"):
-        date_queue.append(date)
-elif ARGS.get("--fileglob"):
-    for f in glob.glob(ARGS.get("--fileglob")):
-        m = re.search(CONFIG["source_file_regex"], f)
-        date_queue.append("{}{}{}".format(
-            m.group("year"), m.group("month"), m.group("day")))
+    if ARGS.get("--eventdate"):
+        for date in ARGS.get("--eventdate"):
+            date_queue.append(date)
+    elif ARGS.get("--fileglob"):
+        for f in glob.glob(ARGS.get("--fileglob")):
+            m = re.search(CONFIG["source_file_regex"], f)
+            date_queue.append("{}{}{}".format(
+                m.group("year"), m.group("month"), m.group("day")))
 
-last_remain_count = None
+    last_remain_count = None
 
-while date_queue:
-    date_queue = dispatch(sorted(date_queue))
+    while date_queue:
+        date_queue = dispatch(sorted(date_queue))
 
-    if last_remain_count != len(date_queue):
-        logger.info("Still pending: {}".format(len(date_queue)))
-        last_remain_count = len(date_queue)
-    if date_queue:
-        time.sleep(20)
+        if last_remain_count != len(date_queue):
+            logger.info("Still pending: {}".format(len(date_queue)))
+            last_remain_count = len(date_queue)
+        if date_queue:
+            time.sleep(20)

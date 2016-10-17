@@ -345,10 +345,6 @@ class ETL(object):
             self.s3.Bucket(self.destbucket).upload_file(
                 local_zip_path, s3_zip_path)
             # self.s3.Bucket(self.destbucket).put_objecty
-            remote_files = self.s3.Bucket(self.destbucket).objects.filter(
-                Prefix=self.dests3path)
-            for f in remote_files:
-                print(f.key)
         else:
             # TODO: compress local files too
             pass
