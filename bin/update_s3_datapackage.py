@@ -20,15 +20,15 @@ from etl2.utils import split_s3_path, load_config
 def get_file_listing(s3=None):
     source_files = {}
 
-    for source_name, source in CONFIG["source"].items():
+    for feed_name, feed in CONFIG["source"].items():
         try:
-            s3_bucket, s3_path = split_s3_path(source["destination_path"])
+            s3_bucket, s3_path = split_s3_path(feed["destination_path"])
             bucket = s3.Bucket(s3_bucket)
-            source_files[source_name] = []
+            source_files[feed_name] = []
             for obj in bucket.objects.filter(Prefix=s3_path):
                 # dir names seem to inconsistently slip in here...
                 if not obj.key.endswith("/"):
-                    source_files[source_name].append(obj.key)
+                    source_files[feed_name].append(obj.key)
         except (KeyError, ValueError) as e:
             print(e)
             print("You need a destination S3 path")

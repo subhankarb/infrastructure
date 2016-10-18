@@ -3,10 +3,7 @@
 """
 Usage:
     aws_task_date_queuer.py --cluster=<cluster> --task=<task> \
-        --feed=<feed> --eventdate=<eventdate>... \
-        --max_tasks=<max_tasks> [--force_write] [--config_file=<config_file>]
-    aws_task_date_queuer.py --cluster=<cluster> --task=<task> \
-        --feed=<feed> --fileglob=<fileglob>  \
+        --feed=<feed> filepattern... \
         --max_tasks=<max_tasks> [--force_write] [--config_file=<config_file>]
 
 Options:
@@ -19,25 +16,28 @@ Options:
                            [default: configs/config.json]
     -m, --max_tasks=<d>    The number of tasks to run in parallel
     --force_write          Write to the output file, even if it already exists
-
+    filepattern            source/datemask for the files to load
 
 Examples:
     aws_task_date_queuer.py --cluster=cybergreen-etl2 \
      --task='arn:aws:ecs:[region]:[acc ID]:task-definition/etl2:2'\
-     --feed=openntp -d 20160527 -d 20160610
+     openntp/20160527 openntp/20160610
     aws_task_date_queuer.py --cluster=cybergreen-etl2 \
      --task='arn:aws:ecs:[region]:[acc ID]:task-definition/etl2:2'\
-     --feed=openntp -f data/*.csv.gz  --max_tasks=10
+     --max_tasks=10 opensnmp/201605*
 """
 import time
 import glob
 import re
 import logging
 from pprint import pformat
+import sys
+print("path is",sys.path)
 
 import boto3
 from collections import deque
-from etl2.utils import load_source_config, load_env_var, load_env_var_or_none
+from etl2.utils import load_feed_config, load_env_var, load_env_var_or_none
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -170,7 +170,7 @@ if __name__ == "__main__":
     print(ARGS)
     date_queue = deque()
 
-    CONFIG = load_source_config(ARGS["--config_file"], ARGS["--feed"])
+    CONFIG = load_feed_config(ARGS["--config_file"], ARGS["--feed"])
 
     if ARGS.get("--eventdate"):
         for date in ARGS.get("--eventdate"):
