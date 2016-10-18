@@ -9,7 +9,9 @@ def config():
     root_dir = tempfile.mkdtemp()
     source_root = os.path.join(root_dir, "raw")
     dest_root = os.path.join(root_dir, "clean")
-    # doesn't effect shell env
+    # *shudder* TODO: fix this swapping mess
+    old_source_root = os.environ["CYBERGREEN_SOURCE_ROOT"]
+    old_dest_root = os.environ["CYBERGREEN_DEST_ROOT"]
     os.environ["CYBERGREEN_SOURCE_ROOT"] = source_root
     os.environ["CYBERGREEN_DEST_ROOT"] = dest_root
     os.environ["DD_API_KEY"] = ""
@@ -18,6 +20,8 @@ def config():
     r['c']=c
     r['source_root']=source_root
     r['dest_root']=dest_root
+    os.environ["CYBERGREEN_SOURCE_ROOT"] = old_source_root
+    os.environ["CYBERGREEN_DEST_ROOT"] = old_dest_root
     return r
 
 @pytest.fixture(scope="module")
@@ -25,7 +29,9 @@ def source_config():
     root_dir = tempfile.mkdtemp()
     source_root = os.path.join(root_dir, "raw")
     dest_root = os.path.join(root_dir, "clean")
-    # doesn't effect shell env
+    # *shudder* TODO: fix this swapping mess
+    old_source_root = os.environ["CYBERGREEN_SOURCE_ROOT"]
+    old_dest_root = os.environ["CYBERGREEN_DEST_ROOT"]
     os.environ["CYBERGREEN_SOURCE_ROOT"] = source_root
     os.environ["CYBERGREEN_DEST_ROOT"] = dest_root
     os.environ["DD_API_KEY"] = ""
@@ -34,6 +40,8 @@ def source_config():
     r['c']=c
     r['source_root']=source_root
     r['dest_root']=dest_root
+    os.environ["CYBERGREEN_SOURCE_ROOT"] = old_source_root
+    os.environ["CYBERGREEN_DEST_ROOT"] = old_dest_root
     return r
 
 def test_if_config_loaded(config):
@@ -54,3 +62,8 @@ def test_if_source_path_template_filled(config):
 
 def test_if_dest_path_template_filled(config):
     assert config['c']['source']['openntp']['destination_path'] == config['dest_root']+"/ntp-scan/"
+
+def test_all_sources_list(config):
+    all_sources= sorted(etl2.utils.all_sources(config['c']) )
+    assert all_sources == ['opendns', 'openntp', 'opensnmp', 'openssdp', 'spam']
+    assert type(all_sources) == list

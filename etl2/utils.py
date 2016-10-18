@@ -3,7 +3,7 @@ from socket import AF_INET, inet_pton
 import json
 from string import Template
 import os
-
+import re
 
 def load_env_var(env_name):
     try:
@@ -72,9 +72,13 @@ def list_s3_files_for_source(s3, config, source):
     s3_bucket, s3_path = split_s3_path(config['source'][source]['source_path'])
     remote_files = s3.Bucket(s3_bucket).objects.filter(
         Prefix=s3_path)
+    pattern_re = re.compile(config['source'][source]['source_file_regex'])
+    matching_files = []
     for f in remote_files:
-        print(f.key)
-
+        t = f.key[len(s3_path):]
+        if len(t) > 1 and pattern_re.match(t):
+            matching_files.append(f.key)
+    return matching_files
 
 def all_sources(config):
     """
