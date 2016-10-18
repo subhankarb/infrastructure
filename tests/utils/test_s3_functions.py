@@ -4,6 +4,7 @@ import os
 import tempfile
 import boto3
 
+
 @pytest.fixture(scope="module")
 def fixture():
     root_dir = tempfile.mkdtemp()
@@ -19,5 +20,6 @@ def fixture():
     r['c']=c
     return r
 
+
 def test_list_s3_files_for_source(fixture):
-	assert len(etl2.utils.list_s3_files_for_source(fixture['s3'],fixture['c'],'openntp')) == 138
+    assert len(etl2.utils.list_s3_files(fixture['s3'], fixture['c'], 'openntp', "in")) == 138

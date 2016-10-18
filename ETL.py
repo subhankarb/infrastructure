@@ -2,21 +2,21 @@
 
 """
 Usage:
-    ETL.py --source=<source> --eventdate=<eventdate>
+    ETL.py --feed=<feed> --eventdate=<eventdate>
            [--config_file=<config_file>] [--force_write]
            [--sampling_rate=<sampling_rate>]
 
 Options:
-    -s, --source=<s>       Source type to process
+    -f, --feed=<s>       Source type to process
     -d, --eventdate=<s>    The date to read the file for
-    -f, --config_file=<s>  The config file to run with
+    -c, --config_file=<s>  The config file to run with
                            [default: configs/config.json]
     --force_write          Write to the output file, even if it already exists
     --sampling_rate=<d>    Rate to sample raw logs [default: 1]
 
 Examples:
-    ETL.py --source=openntp --eventdate=20160527
-    ETL.py --source=openntp --eventdate=20160527 \
+    ETL.py --feed=openntp --eventdate=20160527
+    ETL.py --feed=openntp --eventdate=20160527 \
         --config_file=configs/my_config.json
 """
 import csv
@@ -30,7 +30,7 @@ import shutil
 import sys
 from pytz import utc
 
-from etl2.utils import is_private_ipv4, is_s3_path, load_source_config
+from etl2.utils import is_private_ipv4, is_s3_path, load_feed_config, check_path
 from datetime import datetime
 
 # import cProfile
@@ -95,7 +95,7 @@ asn_tree = None
 
 
 class ETL(object):
-    def __init__(self, eventdate=None, source=None, config_path=None, force_write=False):
+    def __init__(self, eventdate=None, feed=None, config_path=None, force_write=False):
         """
         Initialiser, main thing we bring in is the date we're working from and
         the source feed.
@@ -114,37 +114,40 @@ class ETL(object):
         }
 
         self.eventdate = str(eventdate)
-        # The source name.
-        self.source = source
+        # The feed name.
+        self.feed = feed
         # This is used to cache seen IPs if we're stripping repeat IPs.
         self.ips_seen = set()
-        self.config = load_source_config(config_path, self.source)
+        self.config = load_feed_config(config_path, self.feed)
         self.risk_id = self.config['risk_id']
-
+        self.source_path = None
+        self.source_bucket = None
+        self.source_s3_path = None
+        self.dest_bucket = None
+        self.dest_s3_path = None
         self.s3_output = False
 
         if not is_s3_path(self.config['source_path']):
-            if not self.check_path(self.config['source_path']):
+            if not check_path(self.config['source_path']):
                 logging.warn("Source path is not found")
                 exit()
         if not is_s3_path(self.config['destination_path']):
-            if not self.check_path(self.config['destination_path']):
+            if not check_path(self.config['destination_path']):
                 logging.warn("Destination path is not found")
                 exit()
         e = datetime.strptime(eventdate, "%Y%m%d")
+        if is_s3_path(self.config['source_path'] or is_s3_path(self.config['destination_path'])):
+            try:
+                assert(boto3)
+                self.s3 = boto3.resource('s3')
+            except (AssertionError, NameError):
+                self.s3 = None
+                logging.warn("Install boto3 for AWS integration")
+                raise
 
-        if (is_s3_path(self.config['source_path']) or is_s3_path(self.config['destination_path'])):
-                try:
-                    assert(boto3)
-                    self.s3 = boto3.resource('s3')
-                except (AssertionError, NameError):
-                    self.s3 = None
-                    logging.warn("Install boto3 for AWS integration")
-                    raise
-
-        self.infilename = self.config['source_file_prefix'].format(
+        self.in_filename = self.config['source_file_prefix'].format(
             year=e.year, month=e.month, day=e.day)
-        self.outfilename = self.config['destination_file_prefix'].format(
+        self.out_filename = self.config['destination_file_prefix'].format(
             year=e.year, month=e.month, day=e.day)
         self.ip2l = IP2Location.IP2Location()
         self.ip2l.open(self.config['ip2l_db'])
@@ -165,9 +168,9 @@ class ETL(object):
 
         self.choose_inputs()
 
-    def logstat(self, metric, count):
+    def log_stat(self, metric, count):
         api.Metric.send(metric=metric, points=count, tags=[
-            'source:' + self.source, 'eventdate:' + self.eventdate])
+            'source:' + self.feed, 'eventdate:' + self.eventdate])
 
     def load_asn_tree(self):
         """
@@ -190,28 +193,15 @@ class ETL(object):
                     i += 1
         logging.info("Loaded prefix tree")
 
-    def check_path(self, path):
-        if path[-1:] != '/':
-            logging.error("No trailing slash: {}".format(path))
-            return False
-        try:
-            if not os.path.exists(path):
-                logging.error("Path not found: {}".format(path))
-                return False
-        except Exception as e:
-            logging.error("Exception {}: {}".format(e, path))
-            return False
-        return True
-
     def choose_inputs(self):
         if is_s3_path(self.config['source_path']):
             self.s3_input = True
             logging.info("s3 source: " + self.config['source_path'])
             (self.source_bucket, self.source_s3_path) = (
                 self.config['source_path'][5:].split('/', 1))
-            self.source_path = os.path.join(self.temp_dir, self.infilename)
+            self.source_path = os.path.join(self.temp_dir, self.in_filename)
 
-            s3_path = self.source_s3_path + self.infilename
+            s3_path = self.source_s3_path + self.in_filename
 
             logging.info("fetching input from s3")
             try:
@@ -227,7 +217,7 @@ class ETL(object):
             logging.info("input fetch complete")
         else:
             self.source_path = os.path.join(self.config['source_path'],
-                                            self.infilename)
+                                            self.in_filename)
             self.s3_input = False
 
     # @coroutine
@@ -237,7 +227,7 @@ class ETL(object):
         Reads from a filename, returns an iterator
         if it's GZ then deal with that.
         """
-        if self.infilename.endswith(".gz"):
+        if self.in_filename.endswith(".gz"):
             fh = gzip.open(self.source_path, 'rt')
         else:
             fh = open(self.source_path, "r")
@@ -251,14 +241,15 @@ class ETL(object):
         for line_num, line in enumerate(csvreader):
             if line_num % LOG_OUTPUT_INTERVAL == 0:
                 logging.info("Input file {}: read {} lines".format(
-                    self.infilename, line_num))
+                    self.in_filename, line_num))
 
             if line_num % sampling_rate != 0:
                 continue
 
             target.send(line)
         else:
-            logging.info("Input file {}: finished".format(self.infilename))
+            logging.info("Input file {}: finished".format(self.in_filename))
+
 
     def custom_filter(self, line):
         """
@@ -273,7 +264,7 @@ class ETL(object):
             logging.info("s3 destination: " + self.config['destination_path'])
             self.destpath = "/tmp/"
             # take the s3:// (5 chars) off the front,
-            (self.destbucket, self.dests3path) = (
+            (self.dest_bucket, self.dest_s3path) = (
                 self.config['destination_path'][5:].split('/', 1))
         else:
             self.s3_output = False
@@ -286,9 +277,9 @@ class ETL(object):
         if self.s3_output:
             try:
                 logging.info("Trying to load {}: {}".format(
-                    self.destbucket, self.dests3path + self.outfilename + '.gz'))
+                    self.dest_bucket, self.dest_s3_path + self.out_filename + '.gz'))
                 self.s3.Object(
-                    self.destbucket, self.dests3path + self.outfilename + '.gz').load()
+                    self.dest_bucket, self.dest_s3_path + self.out_filename + '.gz').load()
             except ClientError as e:
                 # print(e.response)
                 if e.response['Error']['Code'] == "404":
@@ -304,7 +295,7 @@ class ETL(object):
 
     @property
     def outfile_full_path(self):
-        return os.path.join(self.destpath, self.outfilename)
+        return os.path.join(self.destpath, self.out_filename)
 
     @coroutine
     # @profile
@@ -315,15 +306,15 @@ class ETL(object):
         """
 
         with open(self.outfile_full_path, "w") as fp:
-            csvwriter = csv.DictWriter(
+            csv_writer = csv.DictWriter(
                 fp, self.config["out_fields"],
                 delimiter=self.config.get('out_sep'), quotechar="'",
                 extrasaction="ignore")
-            csvwriter.writeheader()
+            csv_writer.writeheader()
 
             while True:
                 line = (yield)
-                csvwriter.writerow(line)
+                csv_writer.writerow(line)
 
     def finalise(self):
         """
@@ -331,20 +322,19 @@ class ETL(object):
         This should delete files once we're done too.
         """
         if self.s3_output:
-            local_path = os.path.join(self.destpath, self.outfilename)
+            local_path = os.path.join(self.destpath, self.out_filename)
             local_zip_path = local_path + '.gz'
             s3_zip_path = (
-                os.path.join(self.dests3path, self.outfilename) + '.gz')
+                os.path.join(self.dest_s3_path, self.out_filename) + '.gz')
 
-            logging.info("Uploading to S3: " + self.destbucket + "/" +
+            logging.info("Uploading to S3: " + self.dest_bucket + "/" +
                          s3_zip_path)
 
             with open(local_path, 'rb') as f_in, gzip.open(local_zip_path, 'wb') as f_out:  # noqa
                 shutil.copyfileobj(f_in, f_out)
 
-            self.s3.Bucket(self.destbucket).upload_file(
+            self.s3.Bucket(self.dest_bucket).upload_file(
                 local_zip_path, s3_zip_path)
-            # self.s3.Bucket(self.destbucket).put_objecty
         else:
             # TODO: compress local files too
             pass
@@ -355,7 +345,6 @@ class ETL(object):
         Either return a valid IP or raise an exception/log a warning
         """
         try:
-            # ip_obj = ipaddress.ip_address(ip_str)
             if is_private_ipv4(ip_str):
                 logging.debug("{}: private IP".format(ip_str))
                 raise IPValidationException("{}: {}".format(
@@ -382,7 +371,6 @@ class ETL(object):
                 logging.debug("{}: future timestamp".format(ts_str))
                 raise TimestampValidationException("{}: {}".format(
                     ts_str, "time is in the future"))
-            # return ts_datetime.strftime("%Y-%m-%d %H:%M:%S.0+00")
             return ts_datetime.isoformat()
         except TimestampValidationException:
             logging.warn("{}: future timestamp".format(ts_str))
@@ -396,7 +384,7 @@ class ETL(object):
     # @profile
     def strip_repeat(self, ip):
         if self.config.get('remove_repeats'):
-            if (ip in self.ips_seen):
+            if ip in self.ips_seen:
                 logging.debug("{}: Repeat Record".format(ip))
                 return True
             self.ips_seen.add(ip)
@@ -410,7 +398,7 @@ class ETL(object):
                 iso_code = response.get("country").get("iso_code")
                 if not iso_code:
                     raise ValueError("No country code returned")
-            return iso_code
+                return iso_code
         except Exception:
             logging.debug("{}: Country not found".format(ip))
             self.stats['no_country'] += 1
@@ -428,13 +416,13 @@ class ETL(object):
         except OSError:
             logging.debug("{}: IP was malformed?".format(ip))
             self.stats['no_country'] += 1
-            return 'XY'
+            return "XY"
 
     # @profile
     def enrich_asn(self, ip):
-        rnode = asn_tree.search_best(ip.strip())
-        if rnode and rnode.data.get('origin'):
-            return rnode.data['origin']
+        r_node = asn_tree.search_best(ip.strip())
+        if r_node and r_node.data.get('origin'):
+            return r_node.data['origin']
         else:
             logging.debug("{}: ASN not found".format(ip))
             self.stats['unknown_asn'] += 1
@@ -469,7 +457,7 @@ class ETL(object):
 
             if self.stats['total'] % LOG_OUTPUT_INTERVAL == 0:
                 logging.debug("File {}: filter / parsed {}".format(
-                    self.infilename, self.stats['total']))
+                    self.in_filename, self.stats['total']))
 
             if self.strip_repeat(line["ip"]):
                 self.stats['repeats'] += 1
@@ -498,9 +486,9 @@ class ETL(object):
 
 
 # @profile
-def etl_process(eventdate=None, source=None, config_path=None,
+def etl_process(eventdate=None, feed=None, config_path=None,
                 force_write=False, sampling_rate=1, use_datadog=True):
-    etl = ETL(eventdate=eventdate, source=source, config_path=config_path, force_write=force_write)
+    etl = ETL(eventdate=eventdate, feed=feed, config_path=config_path, force_write=force_write)
     before = datetime.now()
 
     logging.info("Input file: {}".format(etl.source_path))
@@ -524,18 +512,18 @@ def etl_process(eventdate=None, source=None, config_path=None,
     runtime = datetime.now() - before
     s = etl.stats
     logging.info("{} took {} seconds".format(
-        source + "/" + eventdate, runtime))
+        feed + "/" + eventdate, runtime))
     logging.info("Processsed {} recs / sec".format(
         etl.stats["total"] / runtime.total_seconds()))
     logging.info(etl.stats)
 
     if use_datadog:
-        etl.logstat(
+        etl.log_stat(
             "processed_per_second", s["total"] / runtime.total_seconds())
-        etl.logstat(
+        etl.log_stat(
             "enriched_per_second", s["enriched"] / runtime.total_seconds())
         for stat in s:
-            etl.logstat(stat, s[stat])
+            etl.log_stat(stat, s[stat])
     return etl
 
 
@@ -547,11 +535,11 @@ if __name__ == "__main__":
 
     etl_process(
         eventdate=ARGS.get("--eventdate"),
-        source=ARGS.get("--source"),
+        feed=ARGS.get("--feed"),
         config_path=ARGS.get("--config_file"),
         force_write=ARGS.get("--force_write"),
         sampling_rate=ARGS.get("--sampling_rate"),
         use_datadog=USE_DATADOG
     )
-    # cProfile.run('etl_process(eventdate="20160805", source="openntp")',
+    # cProfile.run('etl_process(eventdate="20160805", feed="openntp")',
     #              "etl-slowness")

@@ -4,6 +4,7 @@ import json
 from string import Template
 import os
 import re
+import logging
 
 def load_env_var(env_name):
     try:
@@ -45,12 +46,12 @@ def is_private_ip(ip_obj):
     return ip_obj.is_private
 
 
-def is_private_ip_ipy(ip_str):
-    # on m, gives 10k rec/sec, not quite as good as above int range check
-    from IPy import IP
-    ip = IP(ip_str)
-    ip_type = ip.iptype()
-    return ip_type in (['LOOPBACK', 'PRIVATE'])
+#def is_private_ip_ipy(ip_str):
+#    # on m, gives 10k rec/sec, not quite as good as above int range check
+#    from IPy import IP
+#    ip = IP(ip_str)
+#    ip_type = ip.iptype()
+#    return ip_type in (['LOOPBACK', 'PRIVATE'])
 
 
 def is_s3_path(str):
@@ -65,14 +66,19 @@ def split_s3_path(s3_address):
         return (s3_bucket, s3_path)
 
 
-def list_s3_files_for_source(s3, config, source):
+def list_s3_files(s3, config, feed, direction="in"):
     """
+    direction is "in" or "out". 
+    TODO: This sucks but the source as a datasource and source as a source dir needs to be refactored.
 
     """
-    s3_bucket, s3_path = split_s3_path(config['source'][source]['source_path'])
+    if direction=="in":
+        s3_bucket, s3_path = split_s3_path(config['feed'][feed]['source_path'])
+    else:
+        s3_bucket, s3_path = split_s3_path(config['feed'][feed]['source_path'])
     remote_files = s3.Bucket(s3_bucket).objects.filter(
         Prefix=s3_path)
-    pattern_re = re.compile(config['source'][source]['source_file_regex'])
+    pattern_re = re.compile(config['feed'][feed]['source_file_regex'])
     matching_files = []
     for f in remote_files:
         t = f.key[len(s3_path):]
@@ -80,7 +86,22 @@ def list_s3_files_for_source(s3, config, source):
             matching_files.append(f.key)
     return matching_files
 
-def all_sources(config):
+
+def check_path(path):
+    if path[-1:] != '/':
+        logging.error("No trailing slash: {}".format(path))
+        return False
+    try:
+        if not os.path.exists(path):
+            logging.error("Path not found: {}".format(path))
+            return False
+    except Exception as e:
+        logging.error("Exception {}: {}".format(e, path))
+        return False
+    return True
+
+
+def all_feeds(config):
     """
     Return a list of the sources we know about.
     """
@@ -100,17 +121,13 @@ def load_config(config_path):
         raise ValueError(
             "An environment variable is missing: {}".format(e))
     config = json.loads(config_str)
-
     return config
 
 
-def load_source_config(config_path, source):
-    config = {}
-
+def load_feed_config(config_path, feed):
     c = load_config(config_path)
-    # TODO is this a bad idea? flatten the tree a bit.
     config = {}
     config.update(c)
-    config.update(c['source'][source])
-    del config['source']
+    config.update(c['feed'][feed])
+    del config['feed']
     return config

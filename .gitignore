@@ -94,3 +94,4 @@ env/
 .anaconda 
 # Pre-packages wheels
 wheels/
+.idea/

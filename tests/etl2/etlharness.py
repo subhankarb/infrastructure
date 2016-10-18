@@ -8,7 +8,7 @@ import gzip
 class EtlHarness:
     def __init__(self, source, out_prefix):
         root_dir = tempfile.mkdtemp()
-        self.source_name = source
+        self.feed_name = source
         self.out_prefix = out_prefix
         self.source_root = os.path.join(root_dir, "raw")
         self.source_dir = os.path.join(self.source_root, self.out_prefix)
@@ -39,7 +39,7 @@ class EtlHarness:
     def _get_etl_output(self, data):
         self._write_source_file("parsed.20000101.out.gz", data)
 
-        etl = ETL.etl_process(eventdate="20000101", source=self.source_name, config_path="configs/config.json", use_datadog=False)
+        etl = ETL.etl_process(eventdate="20000101", feed=self.feed_name, config_path="configs/config.json", use_datadog=False)
 
         lines = self._read_dest_file("{}.20000101.csv".format(self.out_prefix))
         return lines, etl

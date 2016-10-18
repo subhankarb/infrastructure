@@ -6,7 +6,7 @@
     "out_fields": ["ts", "ip", "risk_id", "asn", "cc"],
     "datapackage_path": "$CYBERGREEN_DEST_ROOT/datapackage.json",
     "source_file_regex": "parsed\\.(?P<year>\\d{4})(?P<month>\\d{2})(?P<day>\\d{2})\\.out\\.gz",
-    "source": {
+    "feed": {
         "openntp": {
             "risk_id": 2,
             "in_sep": "|",
