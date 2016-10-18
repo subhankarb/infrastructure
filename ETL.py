@@ -7,7 +7,7 @@ Usage:
            [--sampling_rate=<sampling_rate>]
 
 Options:
-    -f, --feed=<s>       Source type to process
+    -f, --feed=<s>         Feed type to process
     -d, --eventdate=<s>    The date to read the file for
     -c, --config_file=<s>  The config file to run with
                            [default: configs/config.json]

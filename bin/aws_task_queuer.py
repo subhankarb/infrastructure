@@ -3,31 +3,31 @@
 """
 Usage:
     aws_task_date_queuer.py --cluster=<cluster> --task=<task> \
-        --source=<source> --eventdate=<eventdate>... \
+        --feed=<feed> --eventdate=<eventdate>... \
         --max_tasks=<max_tasks> [--force_write] [--config_file=<config_file>]
     aws_task_date_queuer.py --cluster=<cluster> --task=<task> \
-        --source=<source> --fileglob=<fileglob>  \
+        --feed=<feed> --fileglob=<fileglob>  \
         --max_tasks=<max_tasks> [--force_write] [--config_file=<config_file>]
 
 Options:
-    -s, --source=<s>       Source type to process
+    -f, --feed=<s>         Feed type to process
     -d, --eventdate=<s>    The date to read the file for
-    -c, --cluster=<s>      AWS cluster name to use
+    -n, --cluster=<s>      AWS cluster name to use
     -t, --task=<s>         AWS task name
     -g, --fileglob=<s>     File glob with files to process
-    -f, --config_file=<s>  The config file to run with
+    -c, --config_file=<s>  The config file to run with
                            [default: configs/config.json]
     -m, --max_tasks=<d>    The number of tasks to run in parallel
     --force_write          Write to the output file, even if it already exists
 
 
 Examples:
-    aws_task_date_queueueuer.py --cluster=cybergreen-etl2 \
+    aws_task_date_queuer.py --cluster=cybergreen-etl2 \
      --task='arn:aws:ecs:[region]:[acc ID]:task-definition/etl2:2'\
-     --source=openntp -d 20160527 -d 20160610
-    aws_task_date_queueueuer.py --cluster=cybergreen-etl2 \
+     --feed=openntp -d 20160527 -d 20160610
+    aws_task_date_queuer.py --cluster=cybergreen-etl2 \
      --task='arn:aws:ecs:[region]:[acc ID]:task-definition/etl2:2'\
-     --source=openntp -f data/*.csv.gz  --max_tasks=10
+     --feed=openntp -f data/*.csv.gz  --max_tasks=10
 """
 import time
 import glob
@@ -108,7 +108,7 @@ def dispatch(pending_queue):
     task_arns = []
 
     # add the number of jobs to make up the deficit
-    for date in pending[:new_task_count]:
+    for file_date in pending[:new_task_count]:
         # TODO: work out how to change Cloudwatch log name
         # logname = "{}-{}-{}".format(
         #    datetime.utcnow().isoformat(), ARGS["--source"], date)
@@ -121,12 +121,12 @@ def dispatch(pending_queue):
                         'name': 'etl',
                         'environment': [
                             {
-                                'name': "SOURCE",
-                                'value': ARGS['--source']
+                                'name': "FEED",
+                                'value': ARGS['--feed']
                             },
                             {
                                 'name': "EVENTDATE",
-                                'value': date
+                                'value': file_date
                             },
                             {
                                 'name': "CYBERGREEN_SOURCE_ROOT",
@@ -170,7 +170,7 @@ if __name__ == "__main__":
     print(ARGS)
     date_queue = deque()
 
-    CONFIG = load_source_config(ARGS["--config_file"], ARGS["--source"])
+    CONFIG = load_source_config(ARGS["--config_file"], ARGS["--feed"])
 
     if ARGS.get("--eventdate"):
         for date in ARGS.get("--eventdate"):
