@@ -32,7 +32,6 @@ import re
 import logging
 from pprint import pformat
 import sys
-print("path is",sys.path)
 
 import boto3
 from collections import deque
@@ -108,7 +107,7 @@ def dispatch(pending_queue):
     task_arns = []
 
     # add the number of jobs to make up the deficit
-    for file_date in pending[:new_task_count]:
+    for task in pending[:new_task_count]:
         # TODO: work out how to change Cloudwatch log name
         # logname = "{}-{}-{}".format(
         #    datetime.utcnow().isoformat(), ARGS["--source"], date)
@@ -122,11 +121,11 @@ def dispatch(pending_queue):
                         'environment': [
                             {
                                 'name': "FEED",
-                                'value': ARGS['--feed']
+                                'value': task['feed']
                             },
                             {
                                 'name': "EVENTDATE",
-                                'value': file_date
+                                'value': task['date']
                             },
                             {
                                 'name': "CYBERGREEN_SOURCE_ROOT",
@@ -163,31 +162,35 @@ def dispatch(pending_queue):
 
     return pending_queue
 
+def enqueue_files(patterns, task_queue):
+    for pattern in patterns:
+        feed, date_pattern = pattern.split('/')
+
 
 if __name__ == "__main__":
     from docopt import docopt
     ARGS = docopt(__doc__)
     print(ARGS)
-    date_queue = deque()
+    task_queue = deque()
 
     CONFIG = load_feed_config(ARGS["--config_file"], ARGS["--feed"])
 
     if ARGS.get("--eventdate"):
         for date in ARGS.get("--eventdate"):
-            date_queue.append(date)
+            task_queue.append(date)
     elif ARGS.get("--fileglob"):
         for f in glob.glob(ARGS.get("--fileglob")):
             m = re.search(CONFIG["source_file_regex"], f)
-            date_queue.append("{}{}{}".format(
+            task_queue.append("{}{}{}".format(
                 m.group("year"), m.group("month"), m.group("day")))
 
     last_remain_count = None
 
-    while date_queue:
-        date_queue = dispatch(sorted(date_queue))
+    while task_queue:
+        task_queue = dispatch(sorted(task_queue))
 
-        if last_remain_count != len(date_queue):
-            logger.info("Still pending: {}".format(len(date_queue)))
-            last_remain_count = len(date_queue)
-        if date_queue:
+        if last_remain_count != len(task_queue):
+            logger.info("Still pending: {}".format(len(task_queue)))
+            last_remain_count = len(task_queue)
+        if task_queue:
             time.sleep(20)

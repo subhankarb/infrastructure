@@ -5,6 +5,8 @@ from string import Template
 import os
 import re
 import logging
+from fnmatch import fnmatch
+
 
 def load_env_var(env_name):
     try:
@@ -66,24 +68,27 @@ def split_s3_path(s3_address):
         return (s3_bucket, s3_path)
 
 
-def list_s3_files(s3, config, feed, direction="in"):
+def list_s3_files(s3, config, feed, date_pattern=None):
     """
-    direction is "in" or "out". 
-    TODO: This sucks but the source as a datasource and source as a source dir needs to be refactored.
+    direction is "in" or "out". should this be source or dest?
+    """
 
-    """
-    if direction=="in":
-        s3_bucket, s3_path = split_s3_path(config['feed'][feed]['source_path'])
-    else:
-        s3_bucket, s3_path = split_s3_path(config['feed'][feed]['source_path'])
+    s3_bucket, s3_path = split_s3_path(config['feed'][feed]['source_path'])
     remote_files = s3.Bucket(s3_bucket).objects.filter(
         Prefix=s3_path)
     pattern_re = re.compile(config['feed'][feed]['source_file_regex'])
     matching_files = []
     for f in remote_files:
         t = f.key[len(s3_path):]
-        if len(t) > 1 and pattern_re.match(t):
-            matching_files.append(f.key)
+        if len(t) > 1:
+            m = pattern_re.match(t)
+            if m:
+                ymd = "{}{}{}".format(m.group("year"), m.group("month"), m.group("day"))
+                if date_pattern:
+                    if fnmatch(ymd, date_pattern):
+                        matching_files.append({"feed":feed, "task_date":ymd})
+                else:
+                    matching_files.append({"feed":feed, "task_date":ymd})
     return matching_files
 
 

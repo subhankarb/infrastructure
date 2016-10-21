@@ -21,5 +21,9 @@ def fixture():
     return r
 
 
-def test_list_s3_files_for_source(fixture):
-    assert len(etl2.utils.list_s3_files(fixture['s3'], fixture['c'], 'openntp', "in")) == 138
+def test_list_s3_files_for_feed(fixture):
+    assert len(etl2.utils.list_s3_files(fixture['s3'], fixture['c'], 'openntp')) == 138
+
+
+def test_list_s3_files_for_feed_with_glob(fixture):
+    assert len(etl2.utils.list_s3_files(fixture['s3'], fixture['c'], 'openntp', date_pattern="201502*")) == 4
