@@ -35,7 +35,7 @@ import sys
 
 import boto3
 from collections import deque
-from etl2.utils import load_feed_config, load_env_var, load_env_var_or_none
+from etl2.utils import load_config, load_env_var, load_env_var_or_none, list_s3_files
 
 
 logging.basicConfig(
@@ -46,6 +46,7 @@ logging.basicConfig(
 logger = logging.getLogger(name=__name__)
 
 client = boto3.client('ecs')
+s3 = boto3.client('s3')
 ARGS = {}
 CONFIG = {}
 
@@ -155,16 +156,19 @@ def dispatch(pending_queue):
         else:
             # print(response)
             logger.info("{} running, taskArn (log name): {}"
-                        .format(date, response["tasks"][0]["taskArn"]))
+                        .format(task['date'], response["tasks"][0]["taskArn"]))
             logger.info("Resp: {}".format(pformat(response)))
             task_arns.append(response["tasks"][0]["taskArn"])
-            pending_queue.remove(date)
+            pending_queue.remove(task)
 
     return pending_queue
+
 
 def enqueue_files(patterns, task_queue):
     for pattern in patterns:
         feed, date_pattern = pattern.split('/')
+        for s3_file in list_s3_files(s3, CONFIG, 'openntp', date_pattern=date_pattern):
+            task_queue.append(s3_file)
 
 
 if __name__ == "__main__":
@@ -172,20 +176,10 @@ if __name__ == "__main__":
     ARGS = docopt(__doc__)
     print(ARGS)
     task_queue = deque()
-
-    CONFIG = load_feed_config(ARGS["--config_file"], ARGS["--feed"])
-
-    if ARGS.get("--eventdate"):
-        for date in ARGS.get("--eventdate"):
-            task_queue.append(date)
-    elif ARGS.get("--fileglob"):
-        for f in glob.glob(ARGS.get("--fileglob")):
-            m = re.search(CONFIG["source_file_regex"], f)
-            task_queue.append("{}{}{}".format(
-                m.group("year"), m.group("month"), m.group("day")))
-
+    global CONFIG
+    CONFIG = load_config(ARGS["--config_file"])
     last_remain_count = None
-
+    enqueue_files(ARGS.get("filepattern"), task_queue)
     while task_queue:
         task_queue = dispatch(sorted(task_queue))
 
