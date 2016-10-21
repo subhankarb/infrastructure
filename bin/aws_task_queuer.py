@@ -151,7 +151,7 @@ def dispatch(pending_queue):
         else:
             # print(response)
             logger.info("{} running, taskArn (log name): {}"
-                        .format(task['date'], response["tasks"][0]["taskArn"]))
+                        .format(task['task_date'], response["tasks"][0]["taskArn"]))
             logger.info("Resp: {}".format(pformat(response)))
             task_arns.append(response["tasks"][0]["taskArn"])
             pending_queue.remove(task)
