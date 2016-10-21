@@ -109,7 +109,7 @@ def all_feeds(config):
     """
     Return a list of the sources we know about.
     """
-    return [i for i in config['source']]
+    return [i for i in config['feed']]
 
 
 def load_config(config_path):
