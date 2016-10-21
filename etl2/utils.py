@@ -85,9 +85,9 @@ def list_s3_files(s3, config, feed, date_pattern=None):
                 ymd = "{}{}{}".format(m.group("year"), m.group("month"), m.group("day"))
                 if date_pattern:
                     if fnmatch(ymd, date_pattern):
-                        matching_files.append({"feed": feed, "task_date": ymd})
+                        matching_files.append({"feed": feed, "event_date": ymd})
                 else:
-                    matching_files.append({"feed": feed, "task_date": ymd})
+                    matching_files.append({"feed": feed, "event_date": ymd})
     return matching_files
 
 

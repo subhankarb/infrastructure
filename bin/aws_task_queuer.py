@@ -2,7 +2,7 @@
 
 """
 Usage:
-    aws_task_date_queuer.py --cluster=<cluster> --task=<task> --max_tasks=<max_tasks> [--force_write] [--config_file=<config_file>] <filepattern>...
+    aws_task_queuer.py --cluster=<cluster> --task=<task> --max_tasks=<max_tasks> [--force_write] [--config_file=<config_file>] <filepattern>...
 
 Options:
     -n, --cluster=<s>      AWS cluster name to use
@@ -14,10 +14,10 @@ Options:
     filepattern            source/datemask for the files to load
 
 Examples:
-    aws_task_date_queuer.py --cluster=cybergreen-etl2 \
+    aws_task_queuer.py --cluster=cybergreen-etl2 \
      --task='arn:aws:ecs:[region]:[acc ID]:task-definition/etl2:2'\
      openntp/20160527 openntp/20160610
-    aws_task_date_queuer.py --cluster=cybergreen-etl2 \
+    aws_task_queuer.py --cluster=cybergreen-etl2 \
      --task='arn:aws:ecs:[region]:[acc ID]:task-definition/etl2:2'\
      --max_tasks=10 opensnmp/201605*
 """
@@ -92,7 +92,7 @@ def update_running_tasks():
 
 def dispatch(pending_queue):
     running_queue = update_running_tasks()
-    pending = sorted(pending_queue.copy(), key=lambda x: x['task_date'])
+    pending = sorted(pending_queue.copy(), key=lambda x: x['event_date'])
     print("Running queue: {}".format(running_queue))
 
     new_task_count = int(ARGS["--max_tasks"]) - len(running_queue)
@@ -121,7 +121,7 @@ def dispatch(pending_queue):
                             },
                             {
                                 'name': "EVENTDATE",
-                                'value': task['task_date']
+                                'value': task['event_date']
                             },
                             {
                                 'name': "CYBERGREEN_SOURCE_ROOT",
@@ -151,7 +151,7 @@ def dispatch(pending_queue):
         else:
             # print(response)
             logger.info("{} running, taskArn (log name): {}"
-                        .format(task['task_date'], response["tasks"][0]["taskArn"]))
+                        .format(task['event_date'], response["tasks"][0]["taskArn"]))
             logger.info("Resp: {}".format(pformat(response)))
             task_arns.append(response["tasks"][0]["taskArn"])
             pending_queue.remove(task)
@@ -164,7 +164,7 @@ def enqueue_files(patterns):
         logger.info("Processing {}".format(pattern))
         feed, date_pattern = pattern.split('/')
         for s3_file in list_s3_files(s3, CONFIG, feed, date_pattern=date_pattern):
-            logger.info("Adding file {}/{}".format(s3_file['feed'], s3_file['task_date']))
+            logger.info("Adding file {}/{}".format(s3_file['feed'], s3_file['event_date']))
             task_queue.append(s3_file)
 
 
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     last_remain_count = None
     enqueue_files(ARGS.get("<filepattern>"))
     while task_queue:
-        task_queue = dispatch(sorted(task_queue, key=lambda x: x['task_date']))
+        task_queue = dispatch(sorted(task_queue, key=lambda x: x['event_date']))
 
         if last_remain_count != len(task_queue):
             logger.info("Still pending: {}".format(len(task_queue)))
