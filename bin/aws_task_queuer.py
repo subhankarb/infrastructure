@@ -164,10 +164,10 @@ def dispatch(pending_queue):
     return pending_queue
 
 
-def enqueue_files(patterns, task_queue):
+def enqueue_files(patterns):
     for pattern in patterns:
         feed, date_pattern = pattern.split('/')
-        for s3_file in list_s3_files(s3, CONFIG, 'openntp', date_pattern=date_pattern):
+        for s3_file in list_s3_files(s3, CONFIG, feed, date_pattern=date_pattern):
             task_queue.append(s3_file)
 
 
@@ -179,7 +179,7 @@ if __name__ == "__main__":
     global CONFIG
     CONFIG = load_config(ARGS["--config_file"])
     last_remain_count = None
-    enqueue_files(ARGS.get("filepattern"), task_queue)
+    enqueue_files(ARGS.get("filepattern"))
     while task_queue:
         task_queue = dispatch(sorted(task_queue))
 
