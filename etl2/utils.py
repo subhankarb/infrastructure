@@ -75,7 +75,7 @@ def list_s3_files(s3, config, feed, date_pattern=None):
     s3_bucket, s3_path = split_s3_path(config['feed'][feed]['source_path'])
     remote_files = s3.Bucket(s3_bucket).objects.filter(
         Prefix=s3_path)
-    pattern_re = re.compile(config['feed'][feed]['source_file_regex'])
+    pattern_re = re.compile(config['source_file_regex'])
     matching_files = []
     for full_path in remote_files:
         file_name = full_path.key[len(s3_path):]

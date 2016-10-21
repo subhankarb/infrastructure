@@ -2,16 +2,11 @@
 
 """
 Usage:
-    aws_task_date_queuer.py --cluster=<cluster> --task=<task> \
-        --feed=<feed> filepattern... \
-        --max_tasks=<max_tasks> [--force_write] [--config_file=<config_file>]
+    aws_task_date_queuer.py --cluster=<cluster> --task=<task> --max_tasks=<max_tasks> [--force_write] [--config_file=<config_file>] <filepattern>...
 
 Options:
-    -f, --feed=<s>         Feed type to process
-    -d, --eventdate=<s>    The date to read the file for
     -n, --cluster=<s>      AWS cluster name to use
     -t, --task=<s>         AWS task name
-    -g, --fileglob=<s>     File glob with files to process
     -c, --config_file=<s>  The config file to run with
                            [default: configs/config.json]
     -m, --max_tasks=<d>    The number of tasks to run in parallel
@@ -46,7 +41,7 @@ logging.basicConfig(
 logger = logging.getLogger(name=__name__)
 
 client = boto3.client('ecs')
-s3 = boto3.client('s3')
+s3 = boto3.resource('s3')
 ARGS = {}
 CONFIG = {}
 
@@ -97,7 +92,7 @@ def update_running_tasks():
 
 def dispatch(pending_queue):
     running_queue = update_running_tasks()
-    pending = sorted(pending_queue.copy())
+    pending = sorted(pending_queue.copy(), key=lambda x: x['task_date'])
     print("Running queue: {}".format(running_queue))
 
     new_task_count = int(ARGS["--max_tasks"]) - len(running_queue)
@@ -126,7 +121,7 @@ def dispatch(pending_queue):
                             },
                             {
                                 'name': "EVENTDATE",
-                                'value': task['date']
+                                'value': task['task_date']
                             },
                             {
                                 'name': "CYBERGREEN_SOURCE_ROOT",
@@ -138,7 +133,7 @@ def dispatch(pending_queue):
                             },
                             {
                                 'name': "DD_API_KEY",
-                                'value': load_env_var_or_none("DD_API_KEY")
+                                'value': load_env_var_or_none("DD_API_KEY") or ""
                             },
                             {
                                 'name': "ECS_AVAILABLE_LOGGING_DRIVERS",
@@ -166,22 +161,22 @@ def dispatch(pending_queue):
 
 def enqueue_files(patterns):
     for pattern in patterns:
+        logger.info("Processing {}".format(pattern))
         feed, date_pattern = pattern.split('/')
         for s3_file in list_s3_files(s3, CONFIG, feed, date_pattern=date_pattern):
+            logger.info("Adding file {}/{}".format(s3_file['feed'], s3_file['task_date']))
             task_queue.append(s3_file)
 
 
 if __name__ == "__main__":
     from docopt import docopt
     ARGS = docopt(__doc__)
-    print(ARGS)
     task_queue = deque()
-    global CONFIG
     CONFIG = load_config(ARGS["--config_file"])
     last_remain_count = None
-    enqueue_files(ARGS.get("filepattern"))
+    enqueue_files(ARGS.get("<filepattern>"))
     while task_queue:
-        task_queue = dispatch(sorted(task_queue))
+        task_queue = dispatch(sorted(task_queue, key=lambda x: x['task_date']))
 
         if last_remain_count != len(task_queue):
             logger.info("Still pending: {}".format(len(task_queue)))
