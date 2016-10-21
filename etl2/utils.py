@@ -70,25 +70,24 @@ def split_s3_path(s3_address):
 
 def list_s3_files(s3, config, feed, date_pattern=None):
     """
-    direction is "in" or "out". should this be source or dest?
+    date pattern is glob (like shell wildcards) and is optional.
     """
-
     s3_bucket, s3_path = split_s3_path(config['feed'][feed]['source_path'])
     remote_files = s3.Bucket(s3_bucket).objects.filter(
         Prefix=s3_path)
     pattern_re = re.compile(config['feed'][feed]['source_file_regex'])
     matching_files = []
-    for f in remote_files:
-        t = f.key[len(s3_path):]
-        if len(t) > 1:
-            m = pattern_re.match(t)
+    for full_path in remote_files:
+        file_name = full_path.key[len(s3_path):]
+        if len(file_name) > 1:
+            m = pattern_re.match(file_name)
             if m:
                 ymd = "{}{}{}".format(m.group("year"), m.group("month"), m.group("day"))
                 if date_pattern:
                     if fnmatch(ymd, date_pattern):
-                        matching_files.append({"feed":feed, "task_date":ymd})
+                        matching_files.append({"feed": feed, "task_date": ymd})
                 else:
-                    matching_files.append({"feed":feed, "task_date":ymd})
+                    matching_files.append({"feed": feed, "task_date": ymd})
     return matching_files
 
 
