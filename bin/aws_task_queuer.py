@@ -19,7 +19,7 @@ Examples:
      openntp/20160527 openntp/20160610
     aws_task_queuer.py --cluster=cybergreen-etl2 \
      --task='arn:aws:ecs:[region]:[acc ID]:task-definition/etl2:2'\
-     --max_tasks=10 opensnmp/201605*
+     --max_tasks=2 opensnmp/201605*
 """
 import time
 import glob
