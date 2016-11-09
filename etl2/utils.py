@@ -68,11 +68,11 @@ def split_s3_path(s3_address):
         return (s3_bucket, s3_path)
 
 
-def list_s3_files(s3, config, feed, date_pattern=None):
+def list_s3_files(s3, config, feed, srcordest="source_path", date_pattern=None):
     """
     date pattern is glob (like shell wildcards) and is optional.
     """
-    s3_bucket, s3_path = split_s3_path(config['feed'][feed]['source_path'])
+    s3_bucket, s3_path = split_s3_path(config['feed'][feed][srcordest])
     remote_files = s3.Bucket(s3_bucket).objects.filter(
         Prefix=s3_path)
     pattern_re = re.compile(config['source_file_regex'])

@@ -112,7 +112,8 @@ class ETL(object):
             "parsed": 0,
             "enriched": 0
         }
-
+        self.country_count = {}
+        self.asn_count = {}
         self.eventdate = str(eventdate)
         # The feed name.
         self.feed = feed
@@ -129,11 +130,11 @@ class ETL(object):
 
         if not is_s3_path(self.config['source_path']):
             if not check_path(self.config['source_path']):
-                logging.warn("Source path is not found")
+                logging.warning("Source path is not found")
                 exit()
         if not is_s3_path(self.config['destination_path']):
             if not check_path(self.config['destination_path']):
-                logging.warn("Destination path is not found")
+                logging.warning("Destination path is not found")
                 exit()
         e = datetime.strptime(eventdate, "%Y%m%d")
         if is_s3_path(self.config['source_path'] or is_s3_path(self.config['destination_path'])):
@@ -142,7 +143,7 @@ class ETL(object):
                 self.s3 = boto3.resource('s3')
             except (AssertionError, NameError):
                 self.s3 = None
-                logging.warn("Install boto3 for AWS integration")
+                logging.warning("Install boto3 for AWS integration")
                 raise
 
         self.in_filename = self.config['source_file_prefix'].format(
@@ -250,7 +251,6 @@ class ETL(object):
         else:
             logging.info("Input file {}: finished".format(self.in_filename))
 
-
     def custom_filter(self, line):
         """
         Takes in the record as an array of columns, return True if it's good,
@@ -321,6 +321,8 @@ class ETL(object):
         Upload to s3 and currently list dir to show it's there.
         This should delete files once we're done too.
         """
+        print(self.country_count)
+        print(self.asn_count)
         if self.s3_output:
             local_path = os.path.join(self.destpath, self.out_filename)
             local_zip_path = local_path + '.gz'
@@ -342,7 +344,7 @@ class ETL(object):
     # @profile
     def parse_ip(self, ip_str):
         """
-        Either return a valid IP or raise an exception/log a warning
+        Either return a valid IP or raise an exception/log a warninging
         """
         try:
             if is_private_ipv4(ip_str):
@@ -361,7 +363,7 @@ class ETL(object):
     # @profile
     def parse_ts(self, ts_str):
         """
-        Either return a valid TS or raise an exception/log a warning
+        Either return a valid TS or raise an exception/log a warninging
         """
         try:
             ts_float = float(ts_str)
@@ -373,7 +375,7 @@ class ETL(object):
                     ts_str, "time is in the future"))
             return ts_datetime.isoformat()
         except TimestampValidationException:
-            logging.warn("{}: future timestamp".format(ts_str))
+            logging.warning("{}: future timestamp".format(ts_str))
             raise
         except (ValueError, TypeError):
             raise TimestampValidationException("{}: {}".format(
@@ -440,6 +442,8 @@ class ETL(object):
             ip = line["ip"]
             line["asn"] = self.enrich_asn(ip)
             line["cc"] = self.enrich_country(ip)
+            self.country_count[line["cc"]]=self.country_count.get(line["cc"],0)+1
+            self.asn_count[line["asn"]]=self.country_count.get(line["cc"],0)+1
             self.stats["enriched"] += 1
             target.send(line)
 
@@ -486,9 +490,9 @@ class ETL(object):
 
 
 # @profile
-def etl_process(eventdate=None, feed=None, config_path=None,
+def etl_process(event_date=None, feed=None, config_path=None,
                 force_write=False, sampling_rate=1, use_datadog=True):
-    etl = ETL(eventdate=eventdate, feed=feed, config_path=config_path, force_write=force_write)
+    etl = ETL(eventdate=event_date, feed=feed, config_path=config_path, force_write=force_write)
     before = datetime.now()
 
     logging.info("Input file: {}".format(etl.source_path))
@@ -512,8 +516,8 @@ def etl_process(eventdate=None, feed=None, config_path=None,
     runtime = datetime.now() - before
     s = etl.stats
     logging.info("{} took {} seconds".format(
-        feed + "/" + eventdate, runtime))
-    logging.info("Processsed {} recs / sec".format(
+        feed + "/" + event_date, runtime))
+    logging.info("Processed {} recs / sec".format(
         etl.stats["total"] / runtime.total_seconds()))
     logging.info(etl.stats)
 
@@ -534,7 +538,7 @@ if __name__ == "__main__":
     ARGS["--sampling_rate"] = int(ARGS["--sampling_rate"])
 
     etl_process(
-        eventdate=ARGS.get("--eventdate"),
+        event_date=ARGS.get("--eventdate"),
         feed=ARGS.get("--feed"),
         config_path=ARGS.get("--config_file"),
         force_write=ARGS.get("--force_write"),

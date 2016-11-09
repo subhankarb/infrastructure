@@ -38,7 +38,7 @@ class EtlHarness:
     def _get_etl_output(self, data):
         self._write_source_file("parsed.20000101.out.gz", data)
 
-        etl = ETL.etl_process(eventdate="20000101", feed=self.feed_name, config_path="configs/config.json", use_datadog=False)
+        etl = ETL.etl_process(event_date="20000101", feed=self.feed_name, config_path="configs/config.json", use_datadog=False)
 
         lines = self._read_dest_file("{}.20000101.csv".format(self.out_prefix))
         return lines, etl
