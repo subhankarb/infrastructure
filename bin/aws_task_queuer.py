@@ -171,45 +171,50 @@ def enqueue_files(patterns):
     for s3_file in file_set:
         task_queue.append(s3_file)
 
-def instance_ready(instance):
-    """
-    TODO: Make it check for instance state
-    :return:
-    """
-    return True
 
-def start_ec2_instance():
-    user_data = base64.b64encode(
-        "#!/bin/bash\nyum install -y aws-cli\necho ECS_CLUSTER={} >>/etc/ecs/ecs.config\n".format('cybergreen-etl2'))
-
+def start_ec2_instances():
+    user_data = base64.b64encode(b"#!/bin/bash\nyum install -y aws-cli\necho ECS_CLUSTER=cybergreen-etl2 >>/etc/ecs/ecs.config\n")
     ec2 = boto3.resource('ec2', region_name='eu-west-1', api_version='2016-04-01')
-    instance = ec2.create_instances(ImageId='ami-078df974', MinCount=1, MaxCount=1, KeyName='cybergreen-ec2',
+    instances = ec2.create_instances(ImageId='ami-078df974', MinCount=1, MaxCount=1, KeyName='cybergreen-ec2',
                                     SecurityGroups=['launch-wizard-1'], InstanceType="m4.large", UserData=user_data,
                                     BlockDeviceMappings=[{"DeviceName": "/dev/xvdcz",
                                                           "Ebs": {"VolumeSize": 200, "DeleteOnTermination": True}}],
                                     IamInstanceProfile={"Name": "cybergreenECSRole"})
-    while not instance_ready(instance):
+    all_ready = False
+    while not all_ready:
+        all_ready = True
+        for i in instances:
+            print(i, i.state.Name)
+            state = ec2.Instance(id=i.id).state.Name
+            if state != 'running':
+                all_ready = False
+            if state not in ['running', 'pending']:
+                logging.error("Instance failed to start")
+                exit()
         time.sleep(10)
     return
 
-def stop_ec2_instance():
-
+def stop_ec2_instances(instances):
+    ec2 = boto3.resource('ec2', region_name='eu-west-1', api_version='2016-04-01')
+    for i in instances:
+        i.stop()
 
 if __name__ == "__main__":
+    # TODO: move this into a main()?
     from docopt import docopt
     ARGS = docopt(__doc__)
     task_queue = deque()
-    instance=[]
+    instances=[]
     CONFIG = load_config(ARGS["--config_file"])
     last_remain_count = None
     enqueue_files(ARGS.get("<filepattern>"))
     if task_queue:
-        instance = start_ec2_instance()
+        instances = start_ec2_instances()
     while task_queue or len(update_running_tasks()) > 0:
         task_queue = dispatch(sorted(task_queue, key=lambda x: x['event_date']))
         if last_remain_count != len(task_queue):
             logger.info("Still pending: {}".format(len(task_queue)))
             last_remain_count = len(task_queue)
         time.sleep(20)
-    if instance:
-        stop_ec2_instance(instance)
+    if instances:
+        stop_ec2_instances(instances)
