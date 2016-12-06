@@ -5,9 +5,9 @@ import gzip
 
 
 class EtlHarness:
-    def __init__(self, source, out_prefix):
+    def __init__(self, feed, out_prefix):
         root_dir = tempfile.mkdtemp()
-        self.feed_name = source
+        self.feed_name = feed
         self.out_prefix = out_prefix
         self.source_root = os.path.join(root_dir, "raw")
         self.source_dir = os.path.join(self.source_root, self.out_prefix)

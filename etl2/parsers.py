@@ -9,7 +9,7 @@ import shutil
 from pytz import utc
 
 from etl2.utils import is_private_ipv4, is_s3_path, load_feed_config, check_path
-from datetime import datetime
+import datetime
 
 # import cProfile
 import os
@@ -30,6 +30,15 @@ logging.basicConfig(
     format='%(asctime)s - %(pathname)s:%(lineno)d (%(funcName)s) - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S')
 
+if os.environ.get('DD_API_KEY'):
+    logging.info("Using datadog for statistics.")
+    from datadog import initialize, api
+    initialize(api_key=os.environ.get('DD_API_KEY'))
+    USE_DATADOG = True
+else:
+    logging.info("Not using datadog for statistics, set DD_API_KEY to do so.")
+    USE_DATADOG = False
+
 
 class IPValidationException(Exception):
     def __init__(self, *args, **kwargs):
@@ -40,6 +49,9 @@ class TimestampValidationException(Exception):
     def __init__(self, *args, **kwargs):
         Exception.__init__(self, *args, **kwargs)
 
+class OutputExistsException(Exception):
+    def __init__(self, *args, **kwargs):
+        Exception.__init__(self, *args, **kwargs)
 
 def coroutine(func):
     """
@@ -99,7 +111,7 @@ class csv_etl(object):
             if not check_path(self.config['destination_path']):
                 logging.warning("Destination path is not found")
                 exit()
-        e = datetime.strptime(eventdate, "%Y%m%d")
+        e = datetime.datetime.strptime(eventdate, "%Y%m%d")
         if is_s3_path(self.config['source_path'] or is_s3_path(self.config['destination_path'])):
             try:
                 assert(boto3)
@@ -330,9 +342,9 @@ class csv_etl(object):
         """
         try:
             ts_float = float(ts_str)
-            ts_datetime = datetime.fromtimestamp(ts_float, tz=utc).replace(
+            ts_datetime = datetime.datetime.fromtimestamp(ts_float, tz=utc).replace(
                 microsecond=0)
-            if ts_datetime > datetime.now(tz=utc):
+            if ts_datetime > datetime.datetime.now(tz=utc):
                 logging.debug("{}: future timestamp".format(ts_str))
                 raise TimestampValidationException("{}: {}".format(
                     ts_str, "time is in the future"))
@@ -425,7 +437,8 @@ class csv_etl(object):
             except IPValidationException:
                 self.stats['badip'] += 1
                 continue
-            except TimestampValidationException:
+            except TimestampValidationException as e:
+                logging.critical(e)
                 self.stats['badts'] += 1
                 continue
 
@@ -436,3 +449,59 @@ class csv_etl(object):
                 continue
 
             target.send(line)
+
+class mirai360(csv_etl):
+    def parse_ts(self, ts_str):
+        """
+        360 Mirai feed uses a datetime, not seconds since epoch
+        e.g. "2016-11-27 01:23:45"
+        :param ts_str:
+        :return:
+        """
+        try:
+            print("***"+ts_str+"***")
+            naive_dt = datetime.datetime.strptime( ts_str,'%Y-%m-%d %H:%M:%S')
+            ts_datetime = utc.localize(naive_dt)
+            print("***" + ts_datetime.isoformat() + "***")
+            if ts_datetime > datetime.datetime.now(tz=utc):
+                logging.debug("{}: future timestamp".format(ts_str))
+                raise TimestampValidationException("{}: {}".format(
+                    ts_str, "time is in the future"))
+            return ts_datetime.isoformat()
+        except TimestampValidationException:
+            logging.warning("{}: future timestamp".format(ts_str))
+            raise
+        except (ValueError, TypeError):
+            raise TimestampValidationException("{}: {}".format(
+                ts_str, "invalid timestamp"))
+        except:
+            raise
+
+    def input(self, target, sampling_rate):
+        """
+        Mirai feed has prefixes in some fields in a TSV
+        2016-11-27 01:23:45\tsip=1.2.3.4\tdport=23
+        """
+
+        if self.in_filename.endswith(".gz"):
+            fh = gzip.open(self.source_path, 'rt')
+        else:
+            fh = open(self.source_path, "r")
+
+        csv_reader = csv.DictReader(
+            fh, fieldnames=self.config['in_fields'],
+            delimiter=self.config.get('in_sep'), quotechar="'")
+
+        logging.info("Sampling raw data at 1:{}".format(sampling_rate))
+
+        for line_num, line in enumerate(csv_reader):
+            if line_num % LOG_OUTPUT_INTERVAL == 0:
+                logging.info("Input file {}: read {} lines".format(
+                    self.in_filename, line_num))
+
+            if line_num % sampling_rate != 0:
+                continue
+
+            target.send({'ts': line['ts'], 'ip': line['ip'][4:], 'port': line['port'][6:]})
+        else:
+            logging.info("Input file {}: finished".format(self.in_filename))

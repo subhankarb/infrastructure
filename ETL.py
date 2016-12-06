@@ -23,16 +23,7 @@ from datetime import datetime
 import logging
 import os
 from importlib import import_module
-
-if os.environ.get('DD_API_KEY'):
-    logging.info("Using datadog for statistics.")
-    from datadog import initialize, api
-    initialize(api_key=os.environ.get('DD_API_KEY'))
-    USE_DATADOG = True
-else:
-    logging.info("Not using datadog for statistics, set DD_API_KEY to do so.")
-    USE_DATADOG = False
-
+import etl2.parsers
 
 class OutputExistsException(Exception):
     def __init__(self, *args, **kwargs):
@@ -43,9 +34,9 @@ class OutputExistsException(Exception):
 def etl_process(event_date=None, feed=None, config_path=None,
                 force_write=False, sampling_rate=1, use_datadog=True):
     try:
-        ETL = import_module('etl2.parsers.{}'.format(feed))
-    except ImportError:
-        import etl2.parsers.csv_etl as ETL
+        ETL = getattr(etl2.parsers, feed)
+    except AttributeError:
+        ETL = getattr(etl2.parsers,'csv_etl')
 
     etl = ETL(eventdate=event_date, feed=feed, config_path=config_path, force_write=force_write)
     before = datetime.now()
