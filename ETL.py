@@ -30,6 +30,11 @@ class OutputExistsException(Exception):
         Exception.__init__(self, *args, **kwargs)
 
 
+if os.environ.get('DD_API_KEY'):
+    USE_DATADOG = True
+else:
+    USE_DATADOG = False
+
 # @profile
 def etl_process(event_date=None, feed=None, config_path=None,
                 force_write=False, sampling_rate=1, use_datadog=True):

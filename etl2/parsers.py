@@ -459,10 +459,8 @@ class mirai360(csv_etl):
         :return:
         """
         try:
-            print("***"+ts_str+"***")
             naive_dt = datetime.datetime.strptime( ts_str,'%Y-%m-%d %H:%M:%S')
             ts_datetime = utc.localize(naive_dt)
-            print("***" + ts_datetime.isoformat() + "***")
             if ts_datetime > datetime.datetime.now(tz=utc):
                 logging.debug("{}: future timestamp".format(ts_str))
                 raise TimestampValidationException("{}: {}".format(
