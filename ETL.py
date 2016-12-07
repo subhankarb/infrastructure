@@ -22,8 +22,9 @@ import sys
 from datetime import datetime
 import logging
 import os
-from importlib import import_module
 import etl2.parsers
+from etl2.utils import load_feed_config
+
 
 class OutputExistsException(Exception):
     def __init__(self, *args, **kwargs):
@@ -35,15 +36,20 @@ if os.environ.get('DD_API_KEY'):
 else:
     USE_DATADOG = False
 
+
 # @profile
 def etl_process(event_date=None, feed=None, config_path=None,
                 force_write=False, sampling_rate=1, use_datadog=True):
-    try:
-        ETL = getattr(etl2.parsers, feed)
-    except AttributeError:
-        ETL = getattr(etl2.parsers,'csv_etl')
+    config = load_feed_config(config_path, feed)
 
-    etl = ETL(eventdate=event_date, feed=feed, config_path=config_path, force_write=force_write)
+    try:
+        ETL = getattr(etl2.parsers, config["etl_class"])
+        etl = ETL(eventdate=event_date, feed=feed, config=config,
+                  force_write=force_write)
+    except (AttributeError, TypeError):
+        raise RuntimeError(
+            "Couldn't find an ETL class or parser for {}".format(feed))
+
     before = datetime.now()
 
     logging.info("Input file: {}".format(etl.source_path))

@@ -8,6 +8,7 @@
     "source_file_regex": "parsed\\.(?P<year>\\d{4})(?P<month>\\d{2})(?P<day>\\d{2})\\.out\\.gz",
     "feed": {
         "mirai360": {
+            "etl_class": "Mirai360Etl",
             "risk_id": 6,
             "in_sep": "\t",
             "remove_repeats": true,
@@ -19,6 +20,7 @@
             "destination_file_prefix": "mirai-360.{year:02d}{month:02d}{day:02d}.csv"
         },
         "openntp": {
+            "etl_class": "CsvEtl",
             "risk_id": 2,
             "in_sep": "|",
             "remove_repeats": true,
@@ -30,6 +32,7 @@
             "destination_file_prefix": "ntp-scan.{year:02d}{month:02d}{day:02d}.csv"
         },
         "opensnmp": {
+            "etl_class": "CsvEtl",
             "risk_id": 4,
             "in_sep": ":",
             "remove_repeats": true,
@@ -40,6 +43,7 @@
             "destination_file_prefix": "snmp-data.{year:02d}{month:02d}{day:02d}.csv"
         },
         "opendns": {
+            "etl_class": "CsvEtl",
             "risk_id": 1,
             "in_sep": ":",
             "in_fields": ["ip1", "port", "ip", "ip_second", "ts", "rcode", "ra", "correct"],
@@ -50,6 +54,7 @@
             "destination_file_prefix": "dns-scan.{year:02d}{month:02d}{day:02d}.csv"
         },
         "openssdp": {
+            "etl_class": "CsvEtl",
             "risk_id": 5,
             "in_sep": ":",
             "in_fields": ["ts", "ip", "extras"],
@@ -60,6 +65,7 @@
             "destination_file_prefix": "ssdp-data.{year:02d}{month:02d}{day:02d}.csv"
         },
         "spam": {
+            "etl_class": "CsvEtl",
             "risk_id": 3,
             "in_sep": ",",
             "in_fields": ["ts", "ip", "bytes", "subject"],

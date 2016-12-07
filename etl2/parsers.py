@@ -8,7 +8,7 @@ import os.path
 import shutil
 from pytz import utc
 
-from etl2.utils import is_private_ipv4, is_s3_path, load_feed_config, check_path
+from etl2.utils import is_private_ipv4, is_s3_path, check_path
 import datetime
 
 # import cProfile
@@ -49,9 +49,11 @@ class TimestampValidationException(Exception):
     def __init__(self, *args, **kwargs):
         Exception.__init__(self, *args, **kwargs)
 
+
 class OutputExistsException(Exception):
     def __init__(self, *args, **kwargs):
         Exception.__init__(self, *args, **kwargs)
+
 
 def coroutine(func):
     """
@@ -64,13 +66,15 @@ def coroutine(func):
     return start
 
 
-# The Particia tree for the subnet to ASN mapping lives in this, the destructor on the C code doesn't always trigger so we need
-# to make sure we don't keep loading it for the sake of the test runners.
+# The Particia tree for the subnet to ASN mapping lives in this, the destructor
+# on the C code doesn't always trigger so we need to make sure we don't keep
+# loading it for the sake of the test runners.
 asn_tree = None
 
 
-class csv_etl(object):
-    def __init__(self, eventdate=None, feed=None, config_path=None, force_write=False):
+class CsvEtl(object):
+    def __init__(self, eventdate=None, feed=None, config=None,
+                 force_write=False):
         """
         Initialiser, main thing we bring in is the date we're working from and
         the source feed.
@@ -94,7 +98,7 @@ class csv_etl(object):
         self.feed = feed
         # This is used to cache seen IPs if we're stripping repeat IPs.
         self.ips_seen = set()
-        self.config = load_feed_config(config_path, self.feed)
+        self.config = config
         self.risk_id = self.config['risk_id']
         self.source_path = None
         self.source_bucket = None
@@ -112,7 +116,10 @@ class csv_etl(object):
                 logging.warning("Destination path is not found")
                 exit()
         e = datetime.datetime.strptime(eventdate, "%Y%m%d")
-        if is_s3_path(self.config['source_path'] or is_s3_path(self.config['destination_path'])):
+        if (
+            is_s3_path(self.config['source_path']) or
+            is_s3_path(self.config['destination_path'])
+        ):
             try:
                 assert(boto3)
                 self.s3 = boto3.resource('s3')
@@ -252,9 +259,11 @@ class csv_etl(object):
         if self.s3_output:
             try:
                 logging.info("Trying to load {}: {}".format(
-                    self.dest_bucket, self.dest_s3_path + self.out_filename + '.gz'))
+                    self.dest_bucket,
+                    self.dest_s3_path + self.out_filename + '.gz'))
                 self.s3.Object(
-                    self.dest_bucket, self.dest_s3_path + self.out_filename + '.gz').load()
+                    self.dest_bucket,
+                    self.dest_s3_path + self.out_filename + '.gz').load()
             except ClientError as e:
                 # print(e.response)
                 if e.response['Error']['Code'] == "404":
@@ -342,8 +351,8 @@ class csv_etl(object):
         """
         try:
             ts_float = float(ts_str)
-            ts_datetime = datetime.datetime.fromtimestamp(ts_float, tz=utc).replace(
-                microsecond=0)
+            ts_datetime = datetime.datetime.fromtimestamp(
+                ts_float, tz=utc).replace(microsecond=0)
             if ts_datetime > datetime.datetime.now(tz=utc):
                 logging.debug("{}: future timestamp".format(ts_str))
                 raise TimestampValidationException("{}: {}".format(
@@ -403,8 +412,10 @@ class csv_etl(object):
             ip = line["ip"]
             line["asn"] = self.enrich_asn(ip)
             line["cc"] = self.enrich_country(ip)
-            self.country_count[line["cc"]]=self.country_count.get(line["cc"],0)+1
-            self.asn_count[line["asn"]]=self.country_count.get(line["cc"],0)+1
+            self.country_count[line["cc"]] = (
+                self.country_count.get(line["cc"], 0) + 1)
+            self.asn_count[line["asn"]] = (
+                self.country_count.get(line["cc"], 0) + 1)
             self.stats["enriched"] += 1
             target.send(line)
 
@@ -450,7 +461,8 @@ class csv_etl(object):
 
             target.send(line)
 
-class mirai360(csv_etl):
+
+class Mirai360Etl(CsvEtl):
     def parse_ts(self, ts_str):
         """
         360 Mirai feed uses a datetime, not seconds since epoch
@@ -459,7 +471,7 @@ class mirai360(csv_etl):
         :return:
         """
         try:
-            naive_dt = datetime.datetime.strptime( ts_str,'%Y-%m-%d %H:%M:%S')
+            naive_dt = datetime.datetime.strptime(ts_str, '%Y-%m-%d %H:%M:%S')
             ts_datetime = utc.localize(naive_dt)
             if ts_datetime > datetime.datetime.now(tz=utc):
                 logging.debug("{}: future timestamp".format(ts_str))
@@ -500,6 +512,7 @@ class mirai360(csv_etl):
             if line_num % sampling_rate != 0:
                 continue
 
-            target.send({'ts': line['ts'], 'ip': line['ip'][4:], 'port': line['port'][6:]})
+            target.send({'ts': line['ts'], 'ip': line['ip'][4:],
+                         'port': line['port'][6:]})
         else:
             logging.info("Input file {}: finished".format(self.in_filename))
