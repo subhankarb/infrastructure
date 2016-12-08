@@ -22,15 +22,14 @@ Examples:
      --max_tasks=2 opensnmp/201605*
 """
 import time
-import glob
-import re
 import logging
 from pprint import pformat
-import sys
+import math
 
 import boto3
 from collections import deque
-from etl2.utils import load_config, load_env_var, load_env_var_or_none, list_s3_files
+from etl2.utils import (
+    load_config, load_env_var, load_env_var_or_none, list_s3_files)
 import base64
 
 logging.basicConfig(
@@ -44,6 +43,8 @@ client = boto3.client('ecs')
 s3 = boto3.resource('s3')
 ARGS = {}
 CONFIG = {}
+MAX_CLUSTER_COUNT = 10   # max number of EC2 instances to instantiate
+ETL_PROCESSES_PER_HOST = 2
 
 
 def get_task_list():
@@ -71,7 +72,7 @@ def update_running_tasks():
             try:
                 date = ([
                     k["value"]
-                    for k in task["overrides"]["containerOverrides"][0]["environment"]
+                    for k in task["overrides"]["containerOverrides"][0]["environment"]  # noqa
                     if k["name"] == "EVENTDATE"
                 ][0])
             except (IndexError, KeyError):
@@ -133,7 +134,7 @@ def dispatch(pending_queue):
                             },
                             {
                                 'name': "DD_API_KEY",
-                                'value': load_env_var_or_none("DD_API_KEY") or ""
+                                'value': load_env_var_or_none("DD_API_KEY") or ""  # noqa
                             },
                             {
                                 'name': "ECS_AVAILABLE_LOGGING_DRIVERS",
@@ -150,8 +151,9 @@ def dispatch(pending_queue):
             # print("{} not running yet".format(date))
         else:
             # print(response)
-            logger.info("{} running, taskArn (log name): {}"
-                        .format(task['event_date'], response["tasks"][0]["taskArn"]))
+            logger.info(
+                "{} running, taskArn (log name): {}"
+                .format(task['event_date'], response["tasks"][0]["taskArn"]))
             logger.info("Resp: {}".format(pformat(response)))
             task_arns.append(response["tasks"][0]["taskArn"])
             pending_queue.remove(task)
@@ -161,25 +163,49 @@ def dispatch(pending_queue):
 
 def enqueue_files(patterns):
     file_set = set()
+
     for pattern in patterns:
         logger.info("Processing {}".format(pattern))
         feed, date_pattern = pattern.split('/')
         for s3_file in list_s3_files(s3, CONFIG, feed, date_pattern=date_pattern):
+            logger.info("S3 file: %s" % s3_file)
             if s3_file not in list_s3_files(s3, CONFIG, feed, srcordest="destination_path", date_pattern=date_pattern):
                 logger.info("Adding file {}/{}".format(s3_file['feed'], s3_file['event_date']))
-                file_set.add(s3_file)
+                file_set.add(frozenset(s3_file.items()))
+
     for s3_file in file_set:
-        task_queue.append(s3_file)
+        task_queue.append(dict(s3_file))
 
 
 def start_ec2_instances():
-    user_data = base64.b64encode(b"#!/bin/bash\nyum install -y aws-cli\necho ECS_CLUSTER=cybergreen-etl2 >>/etc/ecs/ecs.config\n")
-    ec2 = boto3.resource('ec2', region_name='eu-west-1', api_version='2016-04-01')
-    instances = ec2.create_instances(ImageId='ami-078df974', MinCount=1, MaxCount=1, KeyName='cybergreen-ec2',
-                                    SecurityGroups=['launch-wizard-1'], InstanceType="m4.large", UserData=user_data,
-                                    BlockDeviceMappings=[{"DeviceName": "/dev/xvdcz",
-                                                          "Ebs": {"VolumeSize": 200, "DeleteOnTermination": True}}],
-                                    IamInstanceProfile={"Name": "cybergreenECSRole"})
+    cluster = ARGS['--cluster'],
+    # we pick either min number of hosts to run jobs, up to MAX_CLUSTER_COUNT
+    # hosts. AWS has limit of 20 total by default.
+    count = min(math.floor(int(ARGS['--max_tasks']) / ETL_PROCESSES_PER_HOST),
+                MAX_CLUSTER_COUNT)
+    logger.info("Running {} EC2 hosts in {} cluster".format(count, cluster))
+
+    user_data_str = ("#!/bin/bash\nyum install -y aws-cli\necho ECS_CLUSTER={} "
+                     ">>/etc/ecs/ecs.config\n".format(cluster))
+    user_data = base64.b64encode(bytes(user_data_str, 'utf-8'))
+    ec2 = boto3.resource(
+        'ec2', region_name='eu-west-1', api_version='2016-04-01')
+    instances = ec2.create_instances(
+        ImageId='ami-078df974',
+        MinCount=1,
+        MaxCount=count,
+        KeyName=cluster,
+        SecurityGroups=['launch-wizard-1'],
+        InstanceType="m4.large",
+        UserData=user_data,
+        BlockDeviceMappings=[{
+            "DeviceName": "/dev/xvdcz",
+            "Ebs": {
+                "VolumeSize": 200,
+                "DeleteOnTermination": True
+            }
+        }],
+        IamInstanceProfile={"Name": "cybergreenECSRole"})
     all_ready = False
     while not all_ready:
         all_ready = True
@@ -194,8 +220,10 @@ def start_ec2_instances():
         time.sleep(10)
     return
 
+
 def stop_ec2_instances(instances):
-    ec2 = boto3.resource('ec2', region_name='eu-west-1', api_version='2016-04-01')
+    ec2 = boto3.resource(
+        'ec2', region_name='eu-west-1', api_version='2016-04-01')
     for i in instances:
         i.stop()
 
@@ -204,7 +232,7 @@ if __name__ == "__main__":
     from docopt import docopt
     ARGS = docopt(__doc__)
     task_queue = deque()
-    instances=[]
+    instances = []
     CONFIG = load_config(ARGS["--config_file"])
     last_remain_count = None
     enqueue_files(ARGS.get("<filepattern>"))
