@@ -4,6 +4,4 @@ boto3==1.4.0
 docopt==0.6.2
 py-radix==0.9.6
 pytz==2016.6.1
-lxml==3.6.4
 datadog==0.14.0
-datapackage==0.8.4
