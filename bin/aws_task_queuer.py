@@ -45,6 +45,7 @@ ARGS = {}
 CONFIG = {}
 MAX_CLUSTER_COUNT = 10   # max number of EC2 instances to instantiate
 ETL_PROCESSES_PER_HOST = 2
+EC2_KEYNAME = "cybergreen-ec2"
 
 
 def get_task_list():
@@ -171,6 +172,7 @@ def enqueue_files(patterns):
             logger.info("S3 file: %s" % s3_file)
             if s3_file not in list_s3_files(s3, CONFIG, feed, srcordest="destination_path", date_pattern=date_pattern):
                 logger.info("Adding file {}/{}".format(s3_file['feed'], s3_file['event_date']))
+                # makes dict hashable for set
                 file_set.add(frozenset(s3_file.items()))
 
     for s3_file in file_set:
@@ -178,7 +180,7 @@ def enqueue_files(patterns):
 
 
 def start_ec2_instances():
-    cluster = ARGS['--cluster'],
+    cluster = ARGS['--cluster']
     # we pick either min number of hosts to run jobs, up to MAX_CLUSTER_COUNT
     # hosts. AWS has limit of 20 total by default.
     count = min(math.floor(int(ARGS['--max_tasks']) / ETL_PROCESSES_PER_HOST),
@@ -194,7 +196,7 @@ def start_ec2_instances():
         ImageId='ami-078df974',
         MinCount=1,
         MaxCount=count,
-        KeyName=cluster,
+        KeyName=EC2_KEYNAME,
         SecurityGroups=['launch-wizard-1'],
         InstanceType="m4.large",
         UserData=user_data,
@@ -206,24 +208,26 @@ def start_ec2_instances():
             }
         }],
         IamInstanceProfile={"Name": "cybergreenECSRole"})
+
     all_ready = False
+
     while not all_ready:
         all_ready = True
         for i in instances:
-            print(i, i.state.Name)
-            state = ec2.Instance(id=i.id).state.Name
+            state = ec2.Instance(id=i.id).state.get("Name")
             if state != 'running':
                 all_ready = False
             if state not in ['running', 'pending']:
                 logging.error("Instance failed to start")
                 exit()
         time.sleep(10)
-    return
+    return instances
 
 
 def stop_ec2_instances(instances):
-    ec2 = boto3.resource(
-        'ec2', region_name='eu-west-1', api_version='2016-04-01')
+    # ec2 = boto3.resource(
+    #    'ec2', region_name='eu-west-1', api_version='2016-04-01')
+    logger.info("Stopping instances")
     for i in instances:
         i.stop()
 
@@ -244,5 +248,6 @@ if __name__ == "__main__":
             logger.info("Still pending: {}".format(len(task_queue)))
             last_remain_count = len(task_queue)
         time.sleep(20)
+
     if instances:
         stop_ec2_instances(instances)
