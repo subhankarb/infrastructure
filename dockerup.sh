@@ -7,11 +7,9 @@ die () {
         exit 1
 }
 
-container_repo=$CYBERGREEN_CONTAINER_REPO 
+: ${CYBERGREEN_CONTAINER_REPO?"Need to set CYBERGREEN_CONTAINER_REPO"} 
+: ${CYBERGREEN_AWS_CONTAINER_IMAGE?"Need to set CYBERGREEN_AWS_CONTAINER_IMAGE"} 
 
-if [ ! $container_repo ]; then
-    die "Need to set CYBERGREEN_CONTAINER_REPO"
-fi
 login_cmd="$(aws ecr get-login --region eu-west-1)"
 echo "Logging in"
 # AWS "best practice" - execute arbitrary remote code.
