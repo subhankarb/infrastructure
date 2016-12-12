@@ -7,8 +7,8 @@ die () {
         exit 1
 }
 
-: ${CYBERGREEN_CONTAINER_REPO?"Need to set CYBERGREEN_CONTAINER_REPO"} 
-: ${CYBERGREEN_AWS_CONTAINER_IMAGE?"Need to set CYBERGREEN_AWS_CONTAINER_IMAGE"} 
+: "${CYBERGREEN_CONTAINER_REPO?Need to set CYBERGREEN_CONTAINER_REPO}"
+: "${CYBERGREEN_AWS_CONTAINER_IMAGE?Need to set CYBERGREEN_AWS_CONTAINER_IMAGE}"
 
 login_cmd="$(aws ecr get-login --region eu-west-1)"
 echo "Logging in"
