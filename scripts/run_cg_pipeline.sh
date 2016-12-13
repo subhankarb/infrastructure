@@ -1,7 +1,6 @@
 set -e
 
 bash aws_init.sh
-tmpfile=$(mktemp) && $(cat container_def.json | tr '\n' ' ' | envsubst > $tmpfile) && cat $tmpfile && aws ecs register-task-definition --family $CYBERGREEN_AWS_ECS_TASK_FAMILY --cli-input-json file://$tmpfile
 bash dockerup.sh
 # returns the latest task revision we just created in ecs register-task-definition
 ecs_task_name=$(aws ecs list-task-definitions --family CYBERGREEN_AWS_ECS_TASK_FAMILY | jq --raw-output ".taskDefinitionArns[-1]")
