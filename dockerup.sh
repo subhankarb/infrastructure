@@ -9,6 +9,9 @@ die () {
 
 : "${CYBERGREEN_CONTAINER_REPO?Need to set CYBERGREEN_CONTAINER_REPO}"
 : "${CYBERGREEN_AWS_CONTAINER_IMAGE?Need to set CYBERGREEN_AWS_CONTAINER_IMAGE}"
+: "${CYBERGREEN_AWS_ECS_TASK_FAMILY?Need to set CYBERGREEN_AWS_ECS_TASK_FAMILY}"
+
+tmpfile=$(mktemp) && $(cat container_def.json | tr '\n' ' ' | envsubst > $tmpfile) && cat $tmpfile && aws ecs register-task-definition --family $CYBERGREEN_AWS_ECS_TASK_FAMILY --cli-input-json file://$tmpfile
 
 login_cmd="$(aws ecr get-login --region eu-west-1)"
 echo "Logging in"
