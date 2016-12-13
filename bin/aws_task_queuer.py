@@ -224,12 +224,12 @@ def start_ec2_instances():
     return instances
 
 
-def stop_ec2_instances(instances):
+def terminate_ec2_instances(instances):
     # ec2 = boto3.resource(
     #    'ec2', region_name='eu-west-1', api_version='2016-04-01')
-    logger.info("Stopping instances")
+    logger.info("Terminating instances")
     for i in instances:
-        i.stop()
+        i.terminate()
 
 if __name__ == "__main__":
     # TODO: move this into a main()?
@@ -250,4 +250,4 @@ if __name__ == "__main__":
         time.sleep(20)
 
     if instances:
-        stop_ec2_instances(instances)
+        terminate_ec2_instances(instances)
