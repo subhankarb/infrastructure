@@ -13,5 +13,6 @@ echo "Creating bucket ${CYBERGREEN_S3_BUCKET_NAME}"
 # bucket we use for private data - may already exist, usually errors so || true
 (aws s3api create-bucket --bucket ${CYBERGREEN_S3_BUCKET_NAME} --acl private --create-bucket-configuration LocationConstraint=${CYBERGREEN_AWS_REGION} --region=${CYBERGREEN_AWS_REGION} || true)
 echo "Bucket create: $?"
+# verify it actually exists
 aws s3api get-bucket-acl --bucket ${CYBERGREEN_S3_BUCKET_NAME}
 echo "AWS setup complete"
