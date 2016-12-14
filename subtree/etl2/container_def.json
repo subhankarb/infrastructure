@@ -1,0 +1,25 @@
+{
+  "containerDefinitions": [
+    {
+      "volumesFrom": [],
+      "memory": ${CYBERGREEN_AWS_CONTAINER_MEMORY},
+      "essential": true,
+      "mountPoints": [],
+      "name": "etl",
+      "environment": [],
+      "image": "$CYBERGREEN_AWS_IAM.dkr.ecr.${CYBERGREEN_AWS_REGION}.amazonaws.com/${CYBERGREEN_AWS_CONTAINER_IMAGE}:latest",
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "awslogs-${CYBERGREEN_AWS_CONTAINER_IMAGE}",
+          "awslogs-region": "${CYBERGREEEN_AWS_REGION}",
+          "awslogs-stream-prefix": "awslogs-${CYBERGREEN_AWS_CONTAINER_IMAGE}"
+        }
+      },
+      "cpu": 1,
+      "memoryReservation": ${CYBERGREEN_AWS_CONTAINER_MEMORY}
+    }
+  ],
+  "family": "$CYBERGREEN_AWS_ECS_TASK_FAMILY",
+  "taskRoleArn": "arn:aws:iam::${CYBERGREEN_AWS_IAM}:role/$CYBERGREEN_AWS_ETL_ROLE"
+}

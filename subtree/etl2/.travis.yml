@@ -1,0 +1,14 @@
+language: python
+python:
+- '3.5'
+install:
+- pip install -r requirements-dev.txt
+- pip install -r requirements.txt
+script: pytest
+branches:
+  only:
+  - master
+  - devel
+notifications:
+  slack:
+    secure: IRq8gNClEPjYvvGwlF3gwFSo+8vgp7fQItloXhFZtKa9X7nBDnFCEwexyB1cYICW9WrzQdw7QEkMfxUfmx5delAJ0E+mDQuXLa8Tf+IpgcNfQBS+8Q2Y5JCl3JPxbBa9THGlnoZHvMk7EYDl8zmgJ5aFATKWmjcttj5dHDQUOx8f/mjQQZU3sri/KCw3JRTI42wR8gHESwxir+TToBrfgPu41hmhDgJKtPSPZNEdSsFqhsAA+e3T3WEPiAeRUpJMyp9eQy0oVAWyJYlHwGzHHqQmaGeFILKEVP8RciDuj+K6PxB/+2F5w6dOO/PlxVBOWTnu65S8HsQJM4+/iqfDDdty5q2T6/x3J0rSa+ZD2tERaa+AVQ8KqHZnXvsL7Pwi7j6hnNUKUsZ3kVaueSVzUzE59yGEoAcrsM/1QGVYDSfB2KD0yDLl6WgMb0+joh2VBKJuHK/qtssghPg8zuhcSRNgMlPhhd9B8v2b7Zr5tXeiG+5r/Ay62EdERwsScdESnVi3gpLXYtyepRJ9HeMEX4X80l3Ey7HKTMWVKp/EMTe9pC+sM/nDxG++9kg4x9YHAbjy4pLnV/XsuR4uq3v3qpAqINw4Fg2tR6CSIHZ+d2iIVcYPi0JbnL31DSo5jm92tFyijjHyAxxMdfNcwODr+YWsX3XXMfPwhR2GoOUStfA=
