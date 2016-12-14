@@ -1,0 +1,79 @@
+{
+    "prefix_table": "./table-v4.txt",
+    "ip2l_db": "./IP2LOCATION-LITE-DB1.BIN",
+    "verbose": true,
+    "out_sep": ",",
+    "out_fields": ["ts", "ip", "risk_id", "asn", "cc"],
+    "datapackage_path": "$CYBERGREEN_DEST_ROOT/datapackage.json",
+    "source_file_regex": "parsed\\.(?P<year>\\d{4})(?P<month>\\d{2})(?P<day>\\d{2})\\.out\\.gz",
+    "feed": {
+        "mirai360": {
+            "etl_class": "Mirai360Etl",
+            "risk_id": 6,
+            "in_sep": "\t",
+            "remove_repeats": true,
+            "in_fields": ["ts", "ip", "port"],
+            "source_path":      "$CYBERGREEN_SOURCE_ROOT/mirai-360/",
+            "destination_path": "$CYBERGREEN_DEST_ROOT/mirai-360/",
+            "source_file_prefix": "parsed.{year}{month:02d}{day:02d}.out.gz",
+            "source_file_regex": "parsed\\.(?P<year>\\d{4})(?P<month>\\d{2})(?P<day>\\d{2})\\.out",
+            "destination_file_prefix": "mirai-360.{year:02d}{month:02d}{day:02d}.csv"
+        },
+        "openntp": {
+            "etl_class": "CsvEtl",
+            "risk_id": 2,
+            "in_sep": "|",
+            "remove_repeats": true,
+            "in_fields": ["ts", "ip", "port", "response", "ntp_version", "ntp_mode", "ntp_bytes", "extras"],
+            "source_path":      "$CYBERGREEN_SOURCE_ROOT/ntp-scan/",
+            "destination_path": "$CYBERGREEN_DEST_ROOT/ntp-scan/",
+            "source_file_prefix": "parsed.{year}{month:02d}{day:02d}.out.gz",
+            "source_file_regex": "parsed\\.(?P<year>\\d{4})(?P<month>\\d{2})(?P<day>\\d{2})\\.out",
+            "destination_file_prefix": "ntp-scan.{year:02d}{month:02d}{day:02d}.csv"
+        },
+        "opensnmp": {
+            "etl_class": "CsvEtl",
+            "risk_id": 4,
+            "in_sep": ":",
+            "remove_repeats": true,
+            "in_fields": ["ts", "ip", "ip_secondary", "extras"],
+            "source_path":      "$CYBERGREEN_SOURCE_ROOT/snmp-data/",
+            "destination_path": "$CYBERGREEN_DEST_ROOT/snmp-data/",
+            "source_file_prefix": "parsed.{year}{month:02d}{day:02d}.out.gz",
+            "destination_file_prefix": "snmp-data.{year:02d}{month:02d}{day:02d}.csv"
+        },
+        "opendns": {
+            "etl_class": "CsvEtl",
+            "risk_id": 1,
+            "in_sep": ":",
+            "in_fields": ["ip1", "port", "ip", "ip_second", "ts", "rcode", "ra", "correct"],
+            "remove_repeats": true,
+            "source_path":      "$CYBERGREEN_SOURCE_ROOT/dns-scan/",
+            "destination_path": "$CYBERGREEN_DEST_ROOT/dns-scan/",
+            "source_file_prefix": "parsed.{year}{month:02d}{day:02d}.out.gz",
+            "destination_file_prefix": "dns-scan.{year:02d}{month:02d}{day:02d}.csv"
+        },
+        "openssdp": {
+            "etl_class": "CsvEtl",
+            "risk_id": 5,
+            "in_sep": ":",
+            "in_fields": ["ts", "ip", "extras"],
+            "remove_repeats": true,
+            "source_path":      "$CYBERGREEN_SOURCE_ROOT/ssdp-data/",
+            "destination_path": "$CYBERGREEN_DEST_ROOT/ssdp-data/",
+            "source_file_prefix": "parsed.{year}{month:02d}{day:02d}.out.gz",
+            "destination_file_prefix": "ssdp-data.{year:02d}{month:02d}{day:02d}.csv"
+        },
+        "spam": {
+            "etl_class": "CsvEtl",
+            "risk_id": 3,
+            "in_sep": ",",
+            "in_fields": ["ts", "ip", "bytes", "subject"],
+            "remove_repeats": true,
+            "source_path":      "$CYBERGREEN_SOURCE_ROOT/spam/",
+            "destination_path": "$CYBERGREEN_DEST_ROOT/spam/",
+            "source_file_prefix": "parsed.{year}{month:02d}{day:02d}.out.gz",
+            "destination_file_prefix": "spam.{year:02d}{month:02d}{day:02d}.csv"
+        }
+    }
+}
