@@ -2,10 +2,27 @@
 
 set -e
 
-SUBMODULE_DIR="submodules"
+SUBTREE_DIR="subtrees"
 SCRIPTS_DIR="scripts"
-ETL_DIR="${SUBMODULE_DIR}/etl2"
+ETL_DIR="${SUBTREE_DIR}/etl2"
 ETL_VENV_DIR="venv"
+
+# ETL
+
+## ETL setup / pull latest
+
+if [[ ! -d "$ETL_DIR" ]]; then
+    git subtree add --prefix $ETL_DIR git@github.com:cybergreen-net/etl2.git devel-kayne-s3-orchestration-and-tests
+else
+    git subtree pull --prefix $ETL_DIR git@github.com:cybergreen-net/etl2.git devel-kayne-s3-orchestration-and-tests
+fi
+
+if [ ! -d "$ETL_VENV_DIR" ]; then
+    virtualenv --python=python3 $ETL_VENV_DIR
+    echo "Virtualenv created at $ETL_VENV_DIR"
+fi
+
+## Infra setup / confirm
 
 bash ${SCRIPTS_DIR}/aws_init.sh
 bash "${ETL_DIR}/dockerup.sh"
@@ -14,12 +31,7 @@ ecs_task_name=$(aws ecs list-task-definitions --family CYBERGREEN_AWS_ECS_TASK_F
 
 : "${ecs_task_name?Couldn\'t get ECS task name in $CYBERGREEN_AWS_TASK_FAMILY family from AWS, aborting}" 
 
-# ETL
-
-if [ ! -d "$ETL_VENV_DIR" ]; then
-    virtualenv --python=python3 $ETL_VENV_DIR
-    echo "Virtualenv created at $ETL_VENV_DIR"
-fi
+## ETL run
 
 source $ETL_VENV_DIR/bin/activate
 pip install --upgrade pip
