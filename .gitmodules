@@ -1,4 +1,0 @@
-[submodule "submodules/etl2"]
-	path = submodules/etl2
-	url = git@github.com:cybergreen-net/etl2.git
-	branch = devel-kayne-s3-orchestration-and-tests
