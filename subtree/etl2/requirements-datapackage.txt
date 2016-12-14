@@ -1,2 +1,0 @@
-datapackage==0.8.4
-lxml==3.6.4
