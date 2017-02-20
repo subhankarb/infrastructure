@@ -1,0 +1,23 @@
+{
+  "aws_key": "",
+  "aws_secret": "",
+  "redshift": {
+    "ClusterIdentifier": "",
+    "DBName": "",
+    "MasterUsername": "",
+    "MasterUserPassword": "",
+    "NodeType": "",
+    "ClusterType": "",
+    "PreferredMaintenanceWindow": "",
+    "AllowVersionUpgrade": "",
+    "PubliclyAccessible": "",
+    "IamRoles": []
+  },
+  "rds": {
+    "rds_instance_identifier": ""
+  },
+  "s3": {
+    "s3_private": "",
+    "s3_public": ""
+  }
+}
