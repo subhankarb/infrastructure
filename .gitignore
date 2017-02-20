@@ -98,3 +98,4 @@ env/
 # Pre-packages wheels
 wheels/
 .idea/
+config.json
