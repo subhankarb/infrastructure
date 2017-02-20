@@ -1,6 +1,6 @@
 {
-  "aws_key": "",
-  "aws_secret": "",
+  "access_key": "",
+  "secret_key": "",
   "redshift": {
     "ClusterIdentifier": "",
     "DBName": "",
@@ -19,5 +19,15 @@
   "s3": {
     "s3_private": "",
     "s3_public": ""
+  },
+  "aggregator": {
+    "rds_uri": "",
+    "redshift_uri": "",
+    "role_arn":"",
+    "source_path": "",
+    "dest_path": "",
+    "access_key":"",
+    "secret_key":"",
+    "inventory" : []
   }
 }
