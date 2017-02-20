@@ -1,0 +1,3 @@
+[submodule "aggregator"]
+	path = aggregator
+	url = https://github.com/cybergreen-net/aggregator
