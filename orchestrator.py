@@ -11,22 +11,23 @@ def retrieve_raw_data():
 class Orchestrator(object):
     def __init__(self, config):
         self.config = config
-        self.aggregator = Aggregator(self.config)
         self.load_rds = LoadToRDS(config=self.config)
         self.rds = AwsRds(self.config)
         self.s3 = AwsS3(self.config)
         self.red_shift = AwsRedShift(self.config)
 
     def run(self):
+        self.rds.ensure()
         try:
             self.red_shift.setup()
-            self.aggregator.load_ref_data()
+            aggregator = Aggregator(self.config)
+            aggregator.load_ref_data()
+            aggregator.aggregate()
+            aggregator.add_extention()
         except Exception as e:
             print(e)
         finally:
             self.red_shift.teardown()
-
-        self.rds.ensure()
         self.load_rds.load_ref_data_rds()
 
 
